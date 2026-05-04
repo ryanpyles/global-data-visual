@@ -5,6 +5,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { CountryHighlight, ArcData, RingData, FlyTarget } from "../types";
+import { iso3to2 } from "../data/isoMapping";
 
 export interface GlobeHandle {
   flyTo: (target: FlyTarget) => void;
@@ -36,21 +37,19 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
       },
     }));
 
-    // Build polygon features from raw geo + highlight map
+    // Build polygon features from raw geo + highlight map.
+    // GeoJSON feature.id is ISO Alpha-3; our data uses Alpha-2, so we convert via iso3to2.
     const buildPolygons = (features: any[], hlMap: Map<string, CountryHighlight>) =>
       features.map((feat: any) => {
-        const iso =
-          feat.properties?.ISO_A2 ||
-          feat.properties?.iso_a2 ||
-          feat.properties?.ADM0_A3_IS ||
-          "";
-        const match = hlMap.get(iso);
+        const iso2 = iso3to2[feat.id] ?? "";
+        const match = hlMap.get(iso2);
         return {
           ...feat,
           properties: {
             ...feat.properties,
+            iso2,
             highlightColor: match?.color ?? null,
-            label: match?.label || feat.properties?.ADMIN || feat.properties?.name || iso,
+            label: match?.label || feat.properties?.name || iso2,
           },
         };
       });
@@ -77,14 +76,9 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
         )
         .polygonLabel(POLYGON_LABEL)
         .onPolygonClick((d: any) => {
-          const iso =
-            d.properties?.ISO_A2 ||
-            d.properties?.iso_a2 ||
-            d.properties?.ADM0_A3_IS ||
-            "";
-          const name =
-            d.properties?.ADMIN || d.properties?.name || iso;
-          if (iso) onCountryClick(iso, name);
+          const iso2 = d.properties?.iso2 ?? "";
+          const name = d.properties?.name || iso2;
+          if (iso2) onCountryClick(iso2, name);
         });
     };
 

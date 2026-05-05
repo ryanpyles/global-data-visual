@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { languageGroups } from "../data/languages";
+import { languageGroups, languageFamilies, LanguageGroup } from "../data/languages";
+import { populations, WORLD_POP } from "../data/countryPopulations";
 import { centroids } from "../data/countryCentroids";
 import { CountryHighlight, GlobeState, FlyTarget } from "../types";
 
@@ -10,34 +11,70 @@ interface Props {
 
 const ALL_IDS = new Set(languageGroups.map((l) => l.id));
 
+type SpeakerMode = "total" | "native";
+
+type Preset = {
+  label: string;
+  ids: string[];
+};
+
+const PRESETS: Preset[] = [
+  { label: "All", ids: languageGroups.map((l) => l.id) },
+  { label: "None", ids: [] },
+  {
+    label: "UN Official",
+    ids: ["english", "french", "spanish", "arabic", "russian", "mandarin"],
+  },
+  {
+    label: "Top 5",
+    ids: ["mandarin", "english", "hindi", "spanish", "arabic"],
+  },
+  {
+    label: "Indo-European",
+    ids: languageGroups.filter((l) =>
+      ["Germanic","Romance","Slavic","Indo-Iranian"].includes(l.family)
+    ).map((l) => l.id),
+  },
+];
+
 const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
   const [selected, setSelected] = useState<Set<string>>(ALL_IDS);
   const [search, setSearch] = useState("");
-
-  const filtered = useMemo(
-    () =>
-      languageGroups.filter(
-        (l) =>
-          !search ||
-          l.name.toLowerCase().includes(search.toLowerCase())
-      ),
-    [search]
-  );
+  const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("total");
+  const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set());
 
   const highlights = useMemo<CountryHighlight[]>(() => {
     const out: CountryHighlight[] = [];
-    const seen = new Map<string, string>();
+    const seen = new Map<string, { color: string; label: string }>();
     languageGroups.forEach((lang) => {
       if (!selected.has(lang.id)) return;
       lang.countries.forEach((iso) => {
         if (!seen.has(iso)) {
-          seen.set(iso, lang.color);
+          seen.set(iso, { color: lang.color, label: lang.name });
           out.push({ iso, color: lang.color, label: lang.name });
         }
       });
     });
     return out;
   }, [selected]);
+
+  // Coverage: unique countries covered by selected languages → sum populations
+  const coverage = useMemo(() => {
+    const countriesCovered = new Set<string>();
+    languageGroups.forEach((lang) => {
+      if (!selected.has(lang.id)) return;
+      lang.countries.forEach((iso) => countriesCovered.add(iso));
+    });
+    const pop = Array.from(countriesCovered).reduce(
+      (sum, iso) => sum + (populations[iso] ?? 0),
+      0
+    );
+    const pct = (pop / WORLD_POP) * 100;
+    const speakers = languageGroups
+      .filter((l) => selected.has(l.id))
+      .reduce((sum, l) => sum + (speakerMode === "native" ? l.nativeSpeakers : l.speakers), 0);
+    return { pop: Math.round(pop), pct: Math.min(100, pct), speakers };
+  }, [selected, speakerMode]);
 
   useEffect(() => {
     onStateChange({ highlights, arcs: [], rings: [] });
@@ -50,67 +87,177 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
       return next;
     });
 
-  const allOn = selected.size === languageGroups.length;
+  const applyPreset = (ids: string[]) => setSelected(new Set(ids));
 
-  const handleFlyToLanguage = (lang: typeof languageGroups[0]) => {
-    const firstCountry = lang.countries.find((iso) => centroids[iso]);
-    if (firstCountry && centroids[firstCountry]) {
-      const [lat, lng] = centroids[firstCountry];
-      onFlyTo({ lat, lng, altitude: 1.6 });
-    }
+  const toggleFamily = (family: string) =>
+    setCollapsedFamilies((prev) => {
+      const next = new Set(prev);
+      next.has(family) ? next.delete(family) : next.add(family);
+      return next;
+    });
+
+  const toggleFamilySelect = (family: string, langs: LanguageGroup[]) => {
+    const familyIds = langs.map((l) => l.id);
+    const allOn = familyIds.every((id) => selected.has(id));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allOn) familyIds.forEach((id) => next.delete(id));
+      else familyIds.forEach((id) => next.add(id));
+      return next;
+    });
   };
+
+  const grouped = useMemo(() => {
+    const q = search.toLowerCase();
+    const map: Record<string, LanguageGroup[]> = {};
+    languageFamilies.forEach((f) => { map[f] = []; });
+    languageGroups.forEach((l) => {
+      if (!q || l.name.toLowerCase().includes(q) || l.family.toLowerCase().includes(q)) {
+        if (!map[l.family]) map[l.family] = [];
+        map[l.family].push(l);
+      }
+    });
+    return map;
+  }, [search]);
+
+  const speakerCount = (lang: LanguageGroup) =>
+    speakerMode === "native" ? lang.nativeSpeakers : lang.speakers;
 
   return (
     <>
       <h3 className="sidebar-title">Languages</h3>
 
+      {/* Presets */}
+      <div className="preset-row">
+        {PRESETS.map((p) => (
+          <button
+            key={p.label}
+            className="preset-btn"
+            onClick={() => applyPreset(p.ids)}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Speaker mode toggle */}
+      <div className="toggle-row">
+        <button
+          className={`seg-btn ${speakerMode === "total" ? "seg-active" : ""}`}
+          onClick={() => setSpeakerMode("total")}
+        >
+          Total speakers
+        </button>
+        <button
+          className={`seg-btn ${speakerMode === "native" ? "seg-active" : ""}`}
+          onClick={() => setSpeakerMode("native")}
+        >
+          Native only
+        </button>
+      </div>
+
+      {/* Coverage bar */}
+      <div className="coverage-block">
+        <div className="coverage-label">
+          <span>Language reach</span>
+          <span className="coverage-pct">{coverage.pct.toFixed(0)}% of world</span>
+        </div>
+        <div className="coverage-bar-track">
+          <div
+            className="coverage-bar-fill"
+            style={{ width: `${coverage.pct}%` }}
+          />
+        </div>
+        <div className="coverage-detail">
+          ~{coverage.speakers.toLocaleString()}M{" "}
+          {speakerMode === "native" ? "native" : "total"} speakers ·{" "}
+          {coverage.pop.toLocaleString()}M people in covered countries
+        </div>
+      </div>
+
+      {/* Search */}
       <div className="search-row">
         <input
           className="search-input"
-          placeholder="Search language…"
+          placeholder="Search language or family…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      <button
-        className="toggle-all-btn"
-        onClick={() => setSelected(allOn ? new Set() : new Set(ALL_IDS))}
-      >
-        {allOn ? "Deselect All" : "Select All"}
-      </button>
+      {/* Grouped list */}
+      {languageFamilies.map((family) => {
+        const langs = grouped[family];
+        if (!langs || langs.length === 0) return null;
+        const collapsed = collapsedFamilies.has(family);
+        const allOn = langs.every((l) => selected.has(l.id));
+        const someOn = langs.some((l) => selected.has(l.id));
+        return (
+          <div key={family} className="family-group">
+            <div className="family-header">
+              <button
+                className="family-toggle"
+                onClick={() => toggleFamily(family)}
+              >
+                <span className="family-arrow">{collapsed ? "▶" : "▼"}</span>
+                <span className="family-name">{family}</span>
+                <span className="family-count">{langs.length}</span>
+              </button>
+              <button
+                className={`family-check ${allOn ? "family-check-on" : someOn ? "family-check-partial" : ""}`}
+                onClick={() => toggleFamilySelect(family, langs)}
+                title={allOn ? "Deselect family" : "Select family"}
+              >
+                {allOn ? "✓" : someOn ? "–" : "+"}
+              </button>
+            </div>
 
-      <ul className="legend-list">
-        {filtered.map((lang) => (
-          <li
-            key={lang.id}
-            className={`legend-item ${selected.has(lang.id) ? "active" : "inactive"}`}
-          >
-            <span
-              className="legend-swatch"
-              style={{
-                background: lang.color,
-                boxShadow: selected.has(lang.id) ? `0 0 8px ${lang.color}` : "none",
-              }}
-              onClick={() => toggle(lang.id)}
-            />
-            <span className="legend-name" onClick={() => toggle(lang.id)}>
-              {lang.name}
-            </span>
-            <span className="legend-stat">{lang.speakers}M</span>
-            <button
-              className="fly-btn"
-              title={`Fly to ${lang.name}`}
-              onClick={() => handleFlyToLanguage(lang)}
-            >
-              ◎
-            </button>
-          </li>
-        ))}
-      </ul>
+            {!collapsed && (
+              <ul className="legend-list family-items">
+                {langs.map((lang) => (
+                  <li
+                    key={lang.id}
+                    className={`legend-item ${selected.has(lang.id) ? "active" : "inactive"}`}
+                  >
+                    <span
+                      className="legend-swatch"
+                      style={{
+                        background: lang.color,
+                        boxShadow: selected.has(lang.id) ? `0 0 8px ${lang.color}` : "none",
+                      }}
+                      onClick={() => toggle(lang.id)}
+                    />
+                    <span className="legend-name" onClick={() => toggle(lang.id)}>
+                      {lang.name}
+                    </span>
+                    <div className="legend-right">
+                      <span className="legend-stat">
+                        {speakerCount(lang)}M
+                      </span>
+                      <button
+                        className="fly-btn"
+                        title={`Fly to ${lang.name}`}
+                        onClick={() => {
+                          const first = lang.countries.find((iso) => centroids[iso]);
+                          if (first) {
+                            const [lat, lng] = centroids[first];
+                            onFlyTo({ lat, lng, altitude: 1.6 });
+                          }
+                        }}
+                      >
+                        ◎
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
 
-      <p className="sidebar-note">
-        Colors show primary/official language. Countries with multiple official languages show the first active match. Click ◎ to fly there.
+      <p className="sidebar-note" style={{ marginTop: 4 }}>
+        Countries with multiple official languages show the first active match. ◎ flies camera to that language region.
       </p>
     </>
   );

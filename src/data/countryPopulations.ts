@@ -1,0 +1,31 @@
+// Population in millions (approximate 2023 estimates)
+export const populations: Record<string, number> = {
+  US: 335,  GB: 68,   CA: 38,   AU: 26,   NZ: 5,    IE: 5,    ZA: 60,
+  NG: 220,  GH: 33,   KE: 55,   UG: 48,   TZ: 63,   ZW: 16,   ZM: 19,
+  MW: 20,   BW: 2.6,  NA: 2.6,  SL: 8,    LR: 5,    GM: 2.7,  SZ: 1.1,
+  LS: 2.2,  RW: 14,   SS: 11,   SD: 46,   ET: 125,  CM: 27,   PH: 114,
+  IN: 1420, PK: 240,  BD: 170,  SG: 5.9,  MY: 33,   JM: 3,    TT: 1.4,
+  BB: 0.3,  GY: 0.8,  BZ: 0.4,  BS: 0.4,  AG: 0.1,  DM: 0.07, GD: 0.1,
+  KN: 0.05, LC: 0.2,  VC: 0.1,  MT: 0.5,  CY: 1.3,  FJ: 0.9,  PG: 10,
+  WS: 0.2,  TO: 0.1,  VU: 0.3,  SB: 0.7,  MX: 130,  ES: 47,   CO: 52,
+  AR: 46,   PE: 33,   VE: 28,   CL: 19,   EC: 18,   GT: 17,   CU: 11,
+  BO: 12,   DO: 11,   HN: 10,   PY: 7.4,  SV: 6.3,  NI: 7,    CR: 5.2,
+  PA: 4.4,  UY: 3.5,  GQ: 1.5,  PR: 3.2,  FR: 68,   BE: 11.6, CH: 8.7,
+  LU: 0.65, MC: 0.04, SN: 17,   ML: 22,   BF: 22,   NE: 25,   TD: 17,
+  CF: 5,    CG: 5.8,  CD: 100,  GA: 2.3,  CI: 27,   GN: 13,   BJ: 13,
+  TG: 8,    MG: 28,   DZ: 44,   MA: 37,   TN: 12,   DJ: 1,    KM: 0.9,
+  MU: 1.3,  SC: 0.1,  HT: 11,   PF: 0.28, NC: 0.27, EG: 104,  SA: 35,
+  IQ: 41,   YE: 33,   SY: 22,   JO: 10,   LY: 7,    LB: 5.4,  AE: 10,
+  PS: 5.2,  OM: 4.5,  KW: 4.2,  QA: 2.9,  BH: 1.5,  MR: 4.5,  SO: 17,
+  CN: 1400, TW: 24,   NP: 30,   RU: 144,  BY: 9.4,  KZ: 19,   KG: 7,
+  TJ: 9.5,  UZ: 35,   TM: 6.1,  MD: 2.6,  UA: 37,   GE: 3.7,  AM: 3,
+  AZ: 10,   BR: 215,  PT: 10,   AO: 35,   MZ: 32,   GW: 2,    CV: 0.56,
+  ST: 0.23, TL: 1.3,  DE: 83,   AT: 9,    LI: 0.04, JP: 124,  ID: 274,
+  BN: 0.44, TR: 85,   AF: 40,   IR: 87,   BI: 13,
+  IL: 9.5,  PL: 38,   RO: 19,   HU: 9.7,  CZ: 10.9, SK: 5.5,  BG: 6.5,
+  RS: 7,    MK: 2.1,  GR: 10.7, HR: 3.9,  LV: 1.8,  EE: 1.3,  LT: 2.8,
+  SE: 10.5, NO: 5.4,  FI: 5.5,  DK: 5.9,  AL: 2.8,  MM: 55,   TH: 71,
+  VN: 98,   KH: 17,   LA: 7.5,  KR: 52,   MN: 3.3,  LK: 22,
+};
+
+export const WORLD_POP = 8000; // millions

@@ -11,65 +11,94 @@ interface Props {
 const fmt = (n: number) =>
   n >= 1000 ? `${(n / 1000).toFixed(1)}M` : `${n}K`;
 
-const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
-  const [selectedId, setSelectedId] = useState(diasporaGroups[0].id);
-  const [search, setSearch] = useState("");
+type ArcDir = "outbound" | "inbound";
 
-  const group = diasporaGroups.find((g) => g.id === selectedId)!;
+const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    new Set([diasporaGroups[0].id])
+  );
+  const [search, setSearch] = useState("");
+  const [direction, setDirection] = useState<ArcDir>("outbound");
+
+  const toggleGroup = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const selectedGroups = diasporaGroups.filter((g) => selectedIds.has(g.id));
 
   const globeState = useMemo<GlobeState>(() => {
-    const max = Math.max(...group.destinations.map((d) => d.population));
-
-    // Highlights: origin = white, destinations = group color at varying opacity
-    const highlights: CountryHighlight[] = [
-      { iso: group.origin, color: "#ffffff", label: `${group.originName} (Origin)` },
-    ];
-
+    const highlights: CountryHighlight[] = [];
     const arcs: ArcData[] = [];
+    const seenHl = new Map<string, string>();
 
-    const originCentroid = centroids[group.origin];
+    selectedGroups.forEach((group) => {
+      const originCentroid = centroids[group.origin];
+      const maxPop = Math.max(...group.destinations.map((d) => d.population));
 
-    group.destinations.forEach(({ country, population }) => {
-      const intensity = Math.max(0.25, population / max);
-      const hex = group.color.replace("#", "");
-      const r = parseInt(hex.slice(0, 2), 16);
-      const g = parseInt(hex.slice(2, 4), 16);
-      const b = parseInt(hex.slice(4, 6), 16);
-      const ir = Math.round(r * intensity + 15 * (1 - intensity));
-      const ig = Math.round(g * intensity + 15 * (1 - intensity));
-      const ib = Math.round(b * intensity + 15 * (1 - intensity));
-      const color = `rgb(${ir},${ig},${ib})`;
-
-      highlights.push({
-        iso: country,
-        color,
-        label: `${group.name} — ${fmt(population)}`,
-      });
-
-      if (originCentroid && centroids[country]) {
-        const [oLat, oLng] = originCentroid;
-        const [dLat, dLng] = centroids[country];
-        const stroke = Math.max(0.3, Math.min(2.5, (population / max) * 2.5));
-        arcs.push({
-          startLat: oLat,
-          startLng: oLng,
-          endLat: dLat,
-          endLng: dLng,
-          color: ["#ffffff", group.color],
-          label: `${group.name} → ${country}: ${fmt(population)}`,
-          stroke,
+      // Origin highlight
+      if (!seenHl.has(group.origin)) {
+        seenHl.set(group.origin, "#ffffff");
+        highlights.push({
+          iso: group.origin,
+          color: "#ffffff",
+          label: `${group.originName} (Origin)`,
         });
       }
+
+      group.destinations.forEach(({ country, population }) => {
+        const pct = population / maxPop;
+        const intensity = Math.max(0.25, pct);
+        const hex = group.color.replace("#", "");
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        const ir = Math.round(r * intensity + 12 * (1 - intensity));
+        const ig = Math.round(g * intensity + 12 * (1 - intensity));
+        const ib = Math.round(b * intensity + 12 * (1 - intensity));
+        const color = `rgb(${ir},${ig},${ib})`;
+        const pctOfTotal = ((population / (group.population * 1000)) * 100).toFixed(1);
+
+        if (!seenHl.has(country)) {
+          seenHl.set(country, color);
+          highlights.push({
+            iso: country,
+            color,
+            label: `${group.name} — ${fmt(population)} (${pctOfTotal}% of diaspora)`,
+          });
+        }
+
+        if (originCentroid && centroids[country]) {
+          const [oLat, oLng] = originCentroid;
+          const [dLat, dLng] = centroids[country];
+          const stroke = Math.max(0.3, Math.min(2.5, pct * 2.5));
+
+          const isOutbound = direction === "outbound";
+          arcs.push({
+            startLat: isOutbound ? oLat : dLat,
+            startLng: isOutbound ? oLng : dLng,
+            endLat: isOutbound ? dLat : oLat,
+            endLng: isOutbound ? dLng : oLng,
+            color: isOutbound
+              ? ["#ffffff", group.color]
+              : [group.color, "#ffffff"],
+            label: `${group.name}: ${fmt(population)} (${pctOfTotal}%)`,
+            stroke,
+          });
+        }
+      });
     });
 
     return { highlights, arcs, rings: [] };
-  }, [group]);
+  }, [selectedGroups, direction]);
 
   useEffect(() => {
     onStateChange(globeState);
   }, [globeState, onStateChange]);
 
-  const filteredGroups = useMemo(
+  const filtered = useMemo(
     () =>
       diasporaGroups.filter(
         (g) => !search || g.name.toLowerCase().includes(search.toLowerCase())
@@ -77,14 +106,55 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
     [search]
   );
 
-  const flyToOrigin = () => {
-    const c = centroids[group.origin];
-    if (c) onFlyTo({ lat: c[0], lng: c[1], altitude: 1.6 });
-  };
+  // Aggregate top destinations across all selected groups
+  const topDests = useMemo(() => {
+    const map = new Map<string, number>();
+    selectedGroups.forEach((g) => {
+      g.destinations.forEach(({ country, population }) => {
+        map.set(country, (map.get(country) ?? 0) + population);
+      });
+    });
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }, [selectedGroups]);
+
+  const totalSelected = selectedGroups.reduce(
+    (sum, g) => sum + g.population * 1000,
+    0
+  );
 
   return (
     <>
       <h3 className="sidebar-title">Diaspora Groups</h3>
+
+      {/* Direction toggle */}
+      <div className="toggle-row">
+        <button
+          className={`seg-btn ${direction === "outbound" ? "seg-active" : ""}`}
+          onClick={() => setDirection("outbound")}
+        >
+          ↗ Outbound
+        </button>
+        <button
+          className={`seg-btn ${direction === "inbound" ? "seg-active" : ""}`}
+          onClick={() => setDirection("inbound")}
+        >
+          ↙ Inbound
+        </button>
+      </div>
+
+      {/* Selection summary */}
+      {selectedIds.size > 0 && (
+        <div className="selection-summary">
+          <span>{selectedIds.size} group{selectedIds.size > 1 ? "s" : ""} selected</span>
+          <span className="summary-total">{fmt(totalSelected)} total</span>
+          <button
+            className="clear-btn"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       <div className="search-row">
         <input
@@ -96,56 +166,82 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
       </div>
 
       <ul className="legend-list">
-        {filteredGroups.map((g) => (
-          <li
-            key={g.id}
-            className={`legend-item ${selectedId === g.id ? "active" : "inactive"}`}
-            onClick={() => setSelectedId(g.id)}
-          >
-            <span
-              className="legend-swatch"
-              style={{
-                background: g.color,
-                boxShadow: selectedId === g.id ? `0 0 8px ${g.color}` : "none",
-              }}
-            />
-            <span className="legend-name">{g.name}</span>
-            <span className="legend-stat">{fmt(g.population * 1000)}</span>
-          </li>
-        ))}
+        {filtered.map((g) => {
+          const on = selectedIds.has(g.id);
+          return (
+            <li
+              key={g.id}
+              className={`legend-item ${on ? "active" : "inactive"}`}
+              onClick={() => toggleGroup(g.id)}
+            >
+              <span
+                className={`check-box ${on ? "check-on" : ""}`}
+                style={{ borderColor: on ? g.color : undefined }}
+              >
+                {on && <span style={{ color: g.color }}>✓</span>}
+              </span>
+              <span
+                className="legend-swatch"
+                style={{
+                  background: g.color,
+                  boxShadow: on ? `0 0 8px ${g.color}` : "none",
+                }}
+              />
+              <span className="legend-name">{g.name}</span>
+              <div className="legend-right">
+                <span className="legend-stat">{fmt(g.population * 1000)}</span>
+                <button
+                  className="fly-btn"
+                  title={`Fly to ${g.originName}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const c = centroids[g.origin];
+                    if (c) onFlyTo({ lat: c[0], lng: c[1], altitude: 1.6 });
+                  }}
+                >
+                  ◎
+                </button>
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
-      {group && (
+      {selectedGroups.length > 0 && topDests.length > 0 && (
         <div className="detail-card">
-          <div className="detail-card-header">
-            <h4 style={{ color: group.color }}>{group.name}</h4>
-            <button className="fly-btn" onClick={flyToOrigin} title="Fly to origin">◎</button>
-          </div>
-          <p className="detail-row">Origin: <strong>{group.originName}</strong></p>
-          <p className="detail-row">Total diaspora: <strong>{fmt(group.population * 1000)}</strong></p>
-          <h5 className="detail-subhead">Top destinations</h5>
-          <ul className="dest-list">
-            {[...group.destinations]
-              .sort((a, b) => b.population - a.population)
-              .slice(0, 7)
-              .map((d) => (
-                <li key={d.country} className="dest-row">
-                  <button
-                    className="dest-fly"
-                    title={`Fly to ${d.country}`}
-                    onClick={() => {
-                      const c = centroids[d.country];
-                      if (c) onFlyTo({ lat: c[0], lng: c[1], altitude: 1.8 });
+          <h5 className="detail-subhead">
+            {direction === "outbound" ? "Top destinations" : "Top origins"} (combined)
+          </h5>
+          {topDests.map(([iso, pop]) => {
+            const maxPop = topDests[0][1];
+            const barPct = (pop / maxPop) * 100;
+            return (
+              <div key={iso} className="dest-bar-row">
+                <button
+                  className="dest-fly"
+                  onClick={() => {
+                    const c = centroids[iso];
+                    if (c) onFlyTo({ lat: c[0], lng: c[1], altitude: 1.8 });
+                  }}
+                >
+                  {iso}
+                </button>
+                <div className="dest-bar-wrap">
+                  <div
+                    className="dest-bar-fill"
+                    style={{
+                      width: `${barPct}%`,
+                      background: selectedGroups[0]?.color ?? "#38bdf8",
                     }}
-                  >
-                    {d.country}
-                  </button>
-                  <span className="dest-pop">{fmt(d.population)}</span>
-                </li>
-              ))}
-          </ul>
-          <p className="sidebar-note" style={{ marginTop: 8 }}>
-            Animated arcs show migration flows. Arc thickness scales with population size.
+                  />
+                </div>
+                <span className="dest-pop">{fmt(pop)}</span>
+              </div>
+            );
+          })}
+          <p className="sidebar-note" style={{ marginTop: 6 }}>
+            Arc thickness scales with population.{" "}
+            {direction === "inbound" ? "Arcs flow into origin." : "Arcs flow from origin."}
           </p>
         </div>
       )}

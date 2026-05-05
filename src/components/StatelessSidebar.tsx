@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { statelessGroups } from "../data/stateless";
+import { statelessGroups, StatelessGroup } from "../data/stateless";
 import { centroids } from "../data/countryCentroids";
+import { WORLD_POP } from "../data/countryPopulations";
 import { CountryHighlight, RingData, GlobeState, FlyTarget } from "../types";
 
 interface Props {
@@ -11,11 +12,12 @@ interface Props {
 const fmt = (n: number) =>
   n >= 1000 ? `${(n / 1000).toFixed(1)}M` : `${n}K`;
 
+const TOTAL_STATELESS = statelessGroups.reduce((s, g) => s + g.population, 0); // thousands
 const ALL_IDS = new Set(statelessGroups.map((g) => g.id));
 
 const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
   const [selected, setSelected] = useState<Set<string>>(ALL_IDS);
-  const [hovered, setHovered] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(
@@ -39,11 +41,13 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
           seenHl.set(iso, g.color);
           highlights.push({ iso, color: g.color, label: g.name });
         }
-        const ringKey = `${g.id}-${iso}`;
-        if (!seenRing.has(ringKey) && centroids[iso]) {
-          seenRing.add(ringKey);
+        const key = `${g.id}:${iso}`;
+        if (!seenRing.has(key) && centroids[iso]) {
+          seenRing.add(key);
           const [lat, lng] = centroids[iso];
-          const maxR = Math.max(2, Math.min(6, Math.log10(g.population + 1) * 2));
+          // size = population; concentrated = tighter, distributed = wider
+          const base = Math.max(1.5, Math.min(5, Math.log10(g.population + 1) * 1.8));
+          const maxR = g.type === "distributed" ? base * 1.4 : base;
           rings.push({ lat, lng, color: g.color, label: g.name, maxR });
         }
       });
@@ -63,12 +67,58 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
       return next;
     });
 
+  const toggleExpand = (id: string) =>
+    setExpanded((prev) => (prev === id ? null : id));
+
   const allOn = selected.size === statelessGroups.length;
-  const hoveredGroup = hovered ? statelessGroups.find((g) => g.id === hovered) : null;
+  const selectedPop = statelessGroups
+    .filter((g) => selected.has(g.id))
+    .reduce((s, g) => s + g.population, 0);
+  const worldPct = ((selectedPop / 1000 / WORLD_POP) * 100).toFixed(3);
 
   return (
     <>
       <h3 className="sidebar-title">Stateless Peoples</h3>
+
+      {/* World framing */}
+      <div className="stateless-framing">
+        <div className="framing-numbers">
+          <span className="framing-big">{fmt(selectedPop)}</span>
+          <span className="framing-label">
+            people — {worldPct}% of humanity
+          </span>
+        </div>
+        <div className="framing-bar-track">
+          <div
+            className="framing-bar-fill"
+            style={{ width: `${Math.max(0.5, parseFloat(worldPct) * 800)}%` }}
+          />
+        </div>
+        <div className="framing-note">
+          Global stateless: ~{fmt(TOTAL_STATELESS)} per UNHCR
+        </div>
+      </div>
+
+      {/* Pulse ring legend */}
+      <div className="pulse-legend">
+        <div className="pulse-legend-title">Ring key</div>
+        <div className="pulse-legend-row">
+          <div className="pulse-dot pulse-sm" />
+          <span>Smaller ring = fewer affected</span>
+        </div>
+        <div className="pulse-legend-row">
+          <div className="pulse-dot pulse-lg" />
+          <span>Larger ring = greater population</span>
+        </div>
+        <div className="pulse-legend-row">
+          <div className="pulse-dash" />
+          <span>Concentrated displacement</span>
+        </div>
+        <div className="pulse-legend-row">
+          <div className="pulse-dash pulse-dash-wide" />
+          <span>Distributed identity</span>
+        </div>
+      </div>
 
       <div className="search-row">
         <input
@@ -79,63 +129,97 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
         />
       </div>
 
-      <p className="sidebar-note">
-        Estimated <strong>~10 million</strong> stateless people worldwide (UNHCR). Pulse rings mark affected regions.
-      </p>
+      <div className="sidebar-row-actions">
+        <button
+          className="toggle-all-btn"
+          onClick={() => setSelected(allOn ? new Set() : new Set(ALL_IDS))}
+        >
+          {allOn ? "Deselect All" : "Select All"}
+        </button>
+        <span className="sidebar-note">{selected.size} / {statelessGroups.length} shown</span>
+      </div>
 
-      <button
-        className="toggle-all-btn"
-        onClick={() => setSelected(allOn ? new Set() : new Set(ALL_IDS))}
-      >
-        {allOn ? "Deselect All" : "Select All"}
-      </button>
+      <ul className="legend-list stateless-list">
+        {filtered.map((g) => {
+          const on = selected.has(g.id);
+          const exp = expanded === g.id;
+          return (
+            <li key={g.id} className={`stateless-item ${on ? "active" : "inactive"}`}>
+              <div className="stateless-item-row">
+                <span
+                  className="legend-swatch"
+                  style={{
+                    background: g.color,
+                    boxShadow: on ? `0 0 6px ${g.color}` : "none",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => toggle(g.id)}
+                />
+                <div className="stateless-meta" onClick={() => toggle(g.id)}>
+                  <div className="stateless-name">{g.name}</div>
+                  <div className="stateless-since">
+                    <span
+                      className={`type-badge ${g.type}`}
+                    >
+                      {g.type}
+                    </span>
+                    <span className="since-text">Since {g.since}</span>
+                  </div>
+                </div>
+                <div className="stateless-right">
+                  <span className="legend-stat">{fmt(g.population)}</span>
+                  <button
+                    className="fly-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const first = g.countries.find((iso) => centroids[iso]);
+                      if (first) {
+                        const [lat, lng] = centroids[first];
+                        onFlyTo({ lat, lng, altitude: 1.8 });
+                      }
+                    }}
+                  >
+                    ◎
+                  </button>
+                  <button
+                    className="expand-btn"
+                    onClick={() => toggleExpand(g.id)}
+                    title="Show context"
+                  >
+                    {exp ? "▲" : "▼"}
+                  </button>
+                </div>
+              </div>
 
-      <ul className="legend-list">
-        {filtered.map((g) => (
-          <li
-            key={g.id}
-            className={`legend-item ${selected.has(g.id) ? "active" : "inactive"}`}
-            onMouseEnter={() => setHovered(g.id)}
-            onMouseLeave={() => setHovered(null)}
-          >
-            <span
-              className="legend-swatch"
-              style={{
-                background: g.color,
-                boxShadow: selected.has(g.id) ? `0 0 8px ${g.color}` : "none",
-              }}
-              onClick={() => toggle(g.id)}
-            />
-            <span className="legend-name" onClick={() => toggle(g.id)}>
-              {g.name}
-            </span>
-            <span className="legend-stat">{fmt(g.population)}</span>
-            <button
-              className="fly-btn"
-              title={`Fly to ${g.name}`}
-              onClick={() => {
-                const first = g.countries.find((iso) => centroids[iso]);
-                if (first) {
-                  const [lat, lng] = centroids[first];
-                  onFlyTo({ lat, lng, altitude: 1.8 });
-                }
-              }}
-            >
-              ◎
-            </button>
-          </li>
-        ))}
+              {exp && (
+                <div className="stateless-context">
+                  <p className="context-cause">
+                    <strong>Why stateless:</strong> {g.cause}
+                  </p>
+                  <p className="context-desc">{g.description}</p>
+                  {g.relatedGroups && g.relatedGroups.length > 0 && (
+                    <div className="related-row">
+                      <span className="related-label">Related: </span>
+                      {g.relatedGroups.map((rid) => {
+                        const rel = statelessGroups.find((x) => x.id === rid);
+                        return rel ? (
+                          <span
+                            key={rid}
+                            className="related-tag"
+                            style={{ borderColor: rel.color, color: rel.color }}
+                          >
+                            {rel.name}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
-
-      {hoveredGroup && (
-        <div className="detail-card" style={{ borderColor: hoveredGroup.color }}>
-          <h4 style={{ color: hoveredGroup.color }}>{hoveredGroup.name}</h4>
-          <p className="desc-text">{hoveredGroup.description}</p>
-          <p className="detail-row" style={{ marginTop: 6 }}>
-            Est. population: <strong>{fmt(hoveredGroup.population)}</strong>
-          </p>
-        </div>
-      )}
     </>
   );
 };

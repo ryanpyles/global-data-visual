@@ -4,7 +4,7 @@ import { Vector2 } from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { CountryHighlight, ArcData, RingData, FlyTarget } from "../types";
+import { CountryHighlight, ArcData, RingData, FlyTarget, TabId } from "../types";
 import { iso3to2 } from "../data/isoMapping";
 
 export interface GlobeHandle {
@@ -15,20 +15,29 @@ interface Props {
   highlights: CountryHighlight[];
   arcs: ArcData[];
   rings: RingData[];
+  mode: TabId;
   onCountryClick: (iso: string, name: string) => void;
 }
 
-const POLYGON_LABEL = (d: any) =>
+// Bloom/ring config per mode
+const MODE_CONFIG: Record<TabId, { bloom: number; ringSpeed: number; ringPeriod: number }> = {
+  languages: { bloom: 0.7,  ringSpeed: 3,   ringPeriod: 900 },
+  diaspora:  { bloom: 0.65, ringSpeed: 3,   ringPeriod: 900 },
+  stateless: { bloom: 0.25, ringSpeed: 1.2, ringPeriod: 1800 },
+};
+
+const tooltipHtml = (d: any) =>
   d.properties.highlightColor
-    ? `<div style="background:rgba(5,13,26,0.92);padding:7px 12px;border-radius:8px;border:1px solid ${d.properties.highlightColor};color:#e2eaf4;font-size:13px;font-family:system-ui,sans-serif;pointer-events:none;max-width:220px">${d.properties.label}</div>`
-    : "";
+    ? `<div style="background:rgba(5,13,26,0.94);padding:8px 12px;border-radius:8px;border:1px solid ${d.properties.highlightColor};color:#e2eaf4;font-size:13px;font-family:system-ui,sans-serif;pointer-events:none;max-width:240px;line-height:1.5">${d.properties.label}</div>`
+    : `<div style="background:rgba(5,13,26,0.8);padding:5px 10px;border-radius:6px;color:#7a94b0;font-size:12px;font-family:system-ui,sans-serif;pointer-events:none">${d.properties.name ?? ""}</div>`;
 
 const GlobeViz = forwardRef<GlobeHandle, Props>(
-  ({ highlights, arcs, rings, onCountryClick }, ref) => {
+  ({ highlights, arcs, rings, mode, onCountryClick }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const globeRef = useRef<GlobeInstance | null>(null);
     const geoRef = useRef<any[]>([]);
     const [loaded, setLoaded] = useState(false);
+    const bloomPassRef = useRef<UnrealBloomPass | null>(null);
     const composerRef = useRef<EffectComposer | null>(null);
 
     useImperativeHandle(ref, () => ({
@@ -37,8 +46,6 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
       },
     }));
 
-    // Build polygon features from raw geo + highlight map.
-    // GeoJSON feature.id is ISO Alpha-3; our data uses Alpha-2, so we convert via iso3to2.
     const buildPolygons = (features: any[], hlMap: Map<string, CountryHighlight>) =>
       features.map((feat: any) => {
         const iso2 = iso3to2[feat.id] ?? "";
@@ -54,27 +61,20 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
         };
       });
 
-    // Apply polygon layer config to globe
     const applyPolygons = (globe: any, polygons: any[]) => {
       globe
         .polygonsData(polygons)
         .polygonAltitude((d: any) => (d.properties.highlightColor ? 0.018 : 0.002))
         .polygonCapColor((d: any) =>
-          d.properties.highlightColor
-            ? d.properties.highlightColor + "cc"
-            : "#0d1f35"
+          d.properties.highlightColor ? d.properties.highlightColor + "cc" : "#0d1f35"
         )
         .polygonSideColor((d: any) =>
-          d.properties.highlightColor
-            ? d.properties.highlightColor + "99"
-            : "rgba(0,0,0,0)"
+          d.properties.highlightColor ? d.properties.highlightColor + "99" : "rgba(0,0,0,0)"
         )
         .polygonStrokeColor((d: any) =>
-          d.properties.highlightColor
-            ? d.properties.highlightColor
-            : "#1a3a5c"
+          d.properties.highlightColor ? d.properties.highlightColor : "#1a3a5c"
         )
-        .polygonLabel(POLYGON_LABEL)
+        .polygonLabel(tooltipHtml)
         .onPolygonClick((d: any) => {
           const iso2 = d.properties?.iso2 ?? "";
           const name = d.properties?.name || iso2;
@@ -108,25 +108,24 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
       controls.enableDamping = true;
 
       const el = containerRef.current;
-      const pauseRotate = () => { controls.autoRotate = false; };
-      const resumeRotate = () => { controls.autoRotate = true; };
-      el.addEventListener("mouseenter", pauseRotate);
-      el.addEventListener("mouseleave", resumeRotate);
-      el.addEventListener("touchstart", pauseRotate, { passive: true });
-      el.addEventListener("touchend", resumeRotate, { passive: true });
+      const pause = () => { controls.autoRotate = false; };
+      const resume = () => { controls.autoRotate = true; };
+      el.addEventListener("mouseenter", pause);
+      el.addEventListener("mouseleave", resume);
+      el.addEventListener("touchstart", pause, { passive: true });
+      el.addEventListener("touchend", resume, { passive: true });
 
-      // Bloom post-processing
+      // Bloom
       const renderer = globe.renderer();
       const scene = globe.scene();
       const camera = globe.camera();
-
       const composer = new EffectComposer(renderer);
       composer.addPass(new RenderPass(scene, camera));
       const bloomPass = new UnrealBloomPass(new Vector2(w, h), 0.7, 0.4, 0.05);
       composer.addPass(bloomPass);
       composerRef.current = composer;
+      bloomPassRef.current = bloomPass;
 
-      // Intercept globe's internal renderer.render call to pipe through bloom
       let composing = false;
       const origRender = renderer.render.bind(renderer);
       renderer.render = (s: any, c: any) => {
@@ -139,7 +138,7 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
         }
       };
 
-      // Arc layer defaults
+      // Arc defaults
       globe
         .arcColor("color")
         .arcAltitude(0.35)
@@ -151,18 +150,17 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
           `<div style="background:rgba(5,13,26,0.9);padding:6px 10px;border-radius:6px;color:#e2eaf4;font-size:12px;font-family:system-ui,sans-serif">${d.label}</div>`
         );
 
-      // Ring layer defaults
+      // Ring defaults
       globe
         .ringColor((d: any) => (t: number) => {
-          const c = d.color;
-          const alpha = 1 - t;
-          return `${c}${Math.round(alpha * 255).toString(16).padStart(2, "0")}`;
+          const alpha = Math.round((1 - t) * 255).toString(16).padStart(2, "0");
+          return `${d.color}${alpha}`;
         })
         .ringMaxRadius("maxR")
         .ringPropagationSpeed(3)
         .ringRepeatPeriod(900);
 
-      // Load local GeoJSON
+      // Load GeoJSON
       fetch("/world.geojson")
         .then((r) => r.json())
         .then((data) => {
@@ -170,7 +168,6 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
           setLoaded(true);
         });
 
-      // Resize
       const onResize = () => {
         if (!containerRef.current) return;
         const nw = containerRef.current.clientWidth;
@@ -183,15 +180,25 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
 
       return () => {
         window.removeEventListener("resize", onResize);
-        el.removeEventListener("mouseenter", pauseRotate);
-        el.removeEventListener("mouseleave", resumeRotate);
-        el.removeEventListener("touchstart", pauseRotate);
-        el.removeEventListener("touchend", resumeRotate);
+        el.removeEventListener("mouseenter", pause);
+        el.removeEventListener("mouseleave", resume);
+        el.removeEventListener("touchstart", pause);
+        el.removeEventListener("touchend", resume);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Sync highlights → polygons
+    // Adjust bloom + ring speed when mode changes
+    useEffect(() => {
+      const cfg = MODE_CONFIG[mode];
+      if (bloomPassRef.current) bloomPassRef.current.strength = cfg.bloom;
+      const g = globeRef.current as any;
+      if (g) {
+        g.ringPropagationSpeed(cfg.ringSpeed).ringRepeatPeriod(cfg.ringPeriod);
+      }
+    }, [mode]);
+
+    // Sync polygons
     useEffect(() => {
       const globe = globeRef.current as any;
       if (!globe || !loaded) return;

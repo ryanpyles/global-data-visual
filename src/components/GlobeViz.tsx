@@ -61,8 +61,8 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
         .polygonAltitude((d: any) => (d.properties.highlightColor ? 0.018 : 0.002))
         .polygonCapColor((d: any) =>
           d.properties.highlightColor
-            ? d.properties.highlightColor + "bb"
-            : "rgba(16,36,58,0.35)"
+            ? d.properties.highlightColor + "cc"
+            : "#0d1f35"
         )
         .polygonSideColor((d: any) =>
           d.properties.highlightColor
@@ -72,7 +72,7 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
         .polygonStrokeColor((d: any) =>
           d.properties.highlightColor
             ? d.properties.highlightColor
-            : "rgba(60,100,140,0.2)"
+            : "#1a3a5c"
         )
         .polygonLabel(POLYGON_LABEL)
         .onPolygonClick((d: any) => {
@@ -93,10 +93,10 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
       const h = containerRef.current.clientHeight;
 
       globe
-        .globeImageUrl("/earth-dark.jpg")
+        .globeImageUrl("/earth-blue-marble.jpg")
         .backgroundImageUrl("/night-sky.png")
         .showAtmosphere(true)
-        .atmosphereColor("#1e3a5f")
+        .atmosphereColor("#1a4a8a")
         .atmosphereAltitude(0.14)
         .width(w)
         .height(h);

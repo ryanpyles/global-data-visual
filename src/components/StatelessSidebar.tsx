@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { statelessGroups, StatelessGroup } from "../data/stateless";
+import { statelessGroups } from "../data/stateless";
 import { centroids } from "../data/countryCentroids";
 import { WORLD_POP } from "../data/countryPopulations";
 import { CountryHighlight, RingData, GlobeState, FlyTarget } from "../types";

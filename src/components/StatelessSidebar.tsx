@@ -1,8 +1,30 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { statelessGroups } from "../data/stateless";
 import { centroids } from "../data/countryCentroids";
 import { WORLD_POP } from "../data/countryPopulations";
 import { CountryHighlight, RingData, GlobeState, FlyTarget } from "../types";
+
+function useCountUp(target: number, duration = 700): number {
+  const [display, setDisplay] = useState(target);
+  const prev = useRef(target);
+  useEffect(() => {
+    if (prev.current === target) return;
+    const start = prev.current;
+    const diff = target - start;
+    const t0 = performance.now();
+    let rafId: number;
+    const tick = (now: number) => {
+      const p = Math.min((now - t0) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(start + diff * ease));
+      if (p < 1) rafId = requestAnimationFrame(tick);
+      else prev.current = target;
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [target, duration]);
+  return display;
+}
 
 interface Props {
   onStateChange: (s: GlobeState) => void;
@@ -19,6 +41,7 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
   const [selected, setSelected] = useState<Set<string>>(ALL_IDS);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [isolate, setIsolate] = useState(false);
 
   const filtered = useMemo(
     () =>
@@ -35,17 +58,20 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
     const seenRing = new Set<string>();
 
     statelessGroups.forEach((g) => {
-      if (!selected.has(g.id)) return;
+      const on = selected.has(g.id);
+      if (!on && !isolate) return;
+
       g.countries.forEach((iso) => {
         if (!seenHl.has(iso)) {
-          seenHl.set(iso, g.color);
-          highlights.push({ iso, color: g.color, label: g.name });
+          const color = on ? g.color : "#1c2030";
+          seenHl.set(iso, color);
+          highlights.push({ iso, color, label: on ? g.name : undefined });
         }
+        if (!on) return;
         const key = `${g.id}:${iso}`;
         if (!seenRing.has(key) && centroids[iso]) {
           seenRing.add(key);
           const [lat, lng] = centroids[iso];
-          // size = population; concentrated = tighter, distributed = wider
           const base = Math.max(1.5, Math.min(5, Math.log10(g.population + 1) * 1.8));
           const maxR = g.type === "distributed" ? base * 1.4 : base;
           rings.push({ lat, lng, color: g.color, label: g.name, maxR });
@@ -54,7 +80,7 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
     });
 
     return { highlights, arcs: [], rings };
-  }, [selected]);
+  }, [selected, isolate]);
 
   useEffect(() => {
     onStateChange(globeState);
@@ -74,6 +100,7 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
   const selectedPop = statelessGroups
     .filter((g) => selected.has(g.id))
     .reduce((s, g) => s + g.population, 0);
+  const animatedPop = useCountUp(selectedPop);
   const worldPct = ((selectedPop / 1000 / WORLD_POP) * 100).toFixed(3);
 
   return (
@@ -83,7 +110,7 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
       {/* World framing */}
       <div className="stateless-framing">
         <div className="framing-numbers">
-          <span className="framing-big">{fmt(selectedPop)}</span>
+          <span className="framing-big">{fmt(animatedPop)}</span>
           <span className="framing-label">
             people — {worldPct}% of humanity
           </span>
@@ -136,7 +163,13 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
         >
           {allOn ? "Deselect All" : "Select All"}
         </button>
-        <span className="sidebar-note">{selected.size} / {statelessGroups.length} shown</span>
+        <button
+          className={`isolate-btn ${isolate ? "isolate-on" : ""}`}
+          onClick={() => setIsolate((v) => !v)}
+          title="Isolate mode: dim unselected groups on globe"
+        >
+          {isolate ? "◉ Isolate" : "○ Isolate"}
+        </button>
       </div>
 
       <ul className="legend-list stateless-list">

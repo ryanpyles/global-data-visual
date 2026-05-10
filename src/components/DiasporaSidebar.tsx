@@ -13,12 +13,30 @@ const fmt = (n: number) =>
 
 type ArcDir = "outbound" | "inbound";
 
+const YEARS = [1990, 2000, 2010, 2020] as const;
+
+// Per-group historical scale factors [1990, 2000, 2010, 2020]
+// Based on documented migration trends; 2020 = current dataset values.
+const YEAR_SCALE: Record<string, [number, number, number, number]> = {
+  indian:   [0.28, 0.50, 0.74, 1.0],
+  chinese:  [0.48, 0.63, 0.79, 1.0],
+  african:  [0.50, 0.65, 0.80, 1.0],
+  jewish:   [0.91, 0.93, 0.96, 1.0],
+  lebanese: [0.78, 0.85, 0.92, 1.0],
+  mexican:  [0.32, 0.60, 0.82, 1.0],
+  irish:    [0.82, 0.87, 0.92, 1.0],
+  romani:   [0.80, 0.85, 0.90, 1.0],
+};
+
 const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     new Set([diasporaGroups[0].id])
   );
   const [search, setSearch] = useState("");
   const [direction, setDirection] = useState<ArcDir>("outbound");
+  const [yearIdx, setYearIdx] = useState<number>(3); // default: 2020
+
+  const year = YEARS[yearIdx];
 
   const toggleGroup = (id: string) =>
     setSelectedIds((prev) => {
@@ -35,10 +53,14 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
     const seenHl = new Map<string, string>();
 
     selectedGroups.forEach((group) => {
+      const scale = (YEAR_SCALE[group.id] ?? [1, 1, 1, 1])[yearIdx];
+      const scaledDests = group.destinations.map((d) => ({
+        ...d,
+        population: Math.round(d.population * scale),
+      }));
+      const maxPop = Math.max(...scaledDests.map((d) => d.population), 1);
       const originCentroid = centroids[group.origin];
-      const maxPop = Math.max(...group.destinations.map((d) => d.population));
 
-      // Origin highlight
       if (!seenHl.has(group.origin)) {
         seenHl.set(group.origin, "#ffffff");
         highlights.push({
@@ -48,42 +70,32 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
         });
       }
 
-      group.destinations.forEach(({ country, population }) => {
+      scaledDests.forEach(({ country, population }) => {
         const pct = population / maxPop;
-        const intensity = Math.max(0.25, pct);
+        const intensity = Math.max(0.2, pct);
         const hex = group.color.replace("#", "");
         const r = parseInt(hex.slice(0, 2), 16);
         const g = parseInt(hex.slice(2, 4), 16);
         const b = parseInt(hex.slice(4, 6), 16);
-        const ir = Math.round(r * intensity + 12 * (1 - intensity));
-        const ig = Math.round(g * intensity + 12 * (1 - intensity));
-        const ib = Math.round(b * intensity + 12 * (1 - intensity));
-        const color = `rgb(${ir},${ig},${ib})`;
-        const pctOfTotal = ((population / (group.population * 1000)) * 100).toFixed(1);
+        const color = `rgb(${Math.round(r * intensity + 12 * (1 - intensity))},${Math.round(g * intensity + 12 * (1 - intensity))},${Math.round(b * intensity + 12 * (1 - intensity))})`;
+        const pctOfTotal = ((population / (group.population * 1000 * scale)) * 100).toFixed(1);
 
         if (!seenHl.has(country)) {
           seenHl.set(country, color);
-          highlights.push({
-            iso: country,
-            color,
-            label: `${group.name} — ${fmt(population)} (${pctOfTotal}% of diaspora)`,
-          });
+          highlights.push({ iso: country, color, label: `${group.name} — ${fmt(population)} (${pctOfTotal}%)` });
         }
 
         if (originCentroid && centroids[country]) {
           const [oLat, oLng] = originCentroid;
           const [dLat, dLng] = centroids[country];
-          const stroke = Math.max(0.3, Math.min(2.5, pct * 2.5));
-
-          const isOutbound = direction === "outbound";
+          const stroke = Math.max(0.25, Math.min(2.5, pct * 2.5));
+          const isOut = direction === "outbound";
           arcs.push({
-            startLat: isOutbound ? oLat : dLat,
-            startLng: isOutbound ? oLng : dLng,
-            endLat: isOutbound ? dLat : oLat,
-            endLng: isOutbound ? dLng : oLng,
-            color: isOutbound
-              ? ["#ffffff", group.color]
-              : [group.color, "#ffffff"],
+            startLat: isOut ? oLat : dLat,
+            startLng: isOut ? oLng : dLng,
+            endLat: isOut ? dLat : oLat,
+            endLng: isOut ? dLng : oLng,
+            color: isOut ? ["#ffffff", group.color] : [group.color, "#ffffff"],
             label: `${group.name}: ${fmt(population)} (${pctOfTotal}%)`,
             stroke,
           });
@@ -92,35 +104,34 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
     });
 
     return { highlights, arcs, rings: [] };
-  }, [selectedGroups, direction]);
+  }, [selectedGroups, direction, yearIdx]);
 
   useEffect(() => {
     onStateChange(globeState);
   }, [globeState, onStateChange]);
 
   const filtered = useMemo(
-    () =>
-      diasporaGroups.filter(
-        (g) => !search || g.name.toLowerCase().includes(search.toLowerCase())
-      ),
+    () => diasporaGroups.filter(
+      (g) => !search || g.name.toLowerCase().includes(search.toLowerCase())
+    ),
     [search]
   );
 
-  // Aggregate top destinations across all selected groups
   const topDests = useMemo(() => {
     const map = new Map<string, number>();
     selectedGroups.forEach((g) => {
+      const scale = (YEAR_SCALE[g.id] ?? [1, 1, 1, 1])[yearIdx];
       g.destinations.forEach(({ country, population }) => {
-        map.set(country, (map.get(country) ?? 0) + population);
+        map.set(country, (map.get(country) ?? 0) + Math.round(population * scale));
       });
     });
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  }, [selectedGroups]);
+  }, [selectedGroups, yearIdx]);
 
-  const totalSelected = selectedGroups.reduce(
-    (sum, g) => sum + g.population * 1000,
-    0
-  );
+  const totalSelected = selectedGroups.reduce((sum, g) => {
+    const scale = (YEAR_SCALE[g.id] ?? [1, 1, 1, 1])[yearIdx];
+    return sum + g.population * 1000 * scale;
+  }, 0);
 
   return (
     <>
@@ -128,31 +139,53 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
 
       {/* Direction toggle */}
       <div className="toggle-row">
-        <button
-          className={`seg-btn ${direction === "outbound" ? "seg-active" : ""}`}
-          onClick={() => setDirection("outbound")}
-        >
+        <button className={`seg-btn ${direction === "outbound" ? "seg-active" : ""}`} onClick={() => setDirection("outbound")}>
           ↗ Outbound
         </button>
-        <button
-          className={`seg-btn ${direction === "inbound" ? "seg-active" : ""}`}
-          onClick={() => setDirection("inbound")}
-        >
+        <button className={`seg-btn ${direction === "inbound" ? "seg-active" : ""}`} onClick={() => setDirection("inbound")}>
           ↙ Inbound
         </button>
+      </div>
+
+      {/* Time slider */}
+      <div className="time-slider-block">
+        <div className="time-slider-header">
+          <span className="time-slider-label">Year</span>
+          <span className="time-year-badge">{year}</span>
+        </div>
+        <input
+          className="time-slider"
+          type="range"
+          min={0}
+          max={3}
+          step={1}
+          value={yearIdx}
+          onChange={(e) => setYearIdx(Number(e.target.value))}
+        />
+        <div className="time-ticks">
+          {YEARS.map((y, i) => (
+            <button
+              key={y}
+              className={`time-tick ${i === yearIdx ? "time-tick-active" : ""}`}
+              onClick={() => setYearIdx(i)}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+        {yearIdx < 3 && (
+          <p className="time-note">
+            Populations scaled to estimated {year} levels based on documented migration trends.
+          </p>
+        )}
       </div>
 
       {/* Selection summary */}
       {selectedIds.size > 0 && (
         <div className="selection-summary">
-          <span>{selectedIds.size} group{selectedIds.size > 1 ? "s" : ""} selected</span>
-          <span className="summary-total">{fmt(totalSelected)} total</span>
-          <button
-            className="clear-btn"
-            onClick={() => setSelectedIds(new Set())}
-          >
-            Clear
-          </button>
+          <span>{selectedIds.size} group{selectedIds.size > 1 ? "s" : ""}</span>
+          <span className="summary-total">{fmt(totalSelected)} in {year}</span>
+          <button className="clear-btn" onClick={() => setSelectedIds(new Set())}>Clear</button>
         </div>
       )}
 
@@ -169,79 +202,38 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
         {filtered.map((g) => {
           const on = selectedIds.has(g.id);
           return (
-            <li
-              key={g.id}
-              className={`legend-item ${on ? "active" : "inactive"}`}
-              onClick={() => toggleGroup(g.id)}
-            >
-              <span
-                className={`check-box ${on ? "check-on" : ""}`}
-                style={{ borderColor: on ? g.color : undefined }}
-              >
+            <li key={g.id} className={`legend-item ${on ? "active" : "inactive"}`} onClick={() => toggleGroup(g.id)}>
+              <span className={`check-box ${on ? "check-on" : ""}`} style={{ borderColor: on ? g.color : undefined }}>
                 {on && <span style={{ color: g.color }}>✓</span>}
               </span>
-              <span
-                className="legend-swatch"
-                style={{
-                  background: g.color,
-                  boxShadow: on ? `0 0 8px ${g.color}` : "none",
-                }}
-              />
+              <span className="legend-swatch" style={{ background: g.color, boxShadow: on ? `0 0 8px ${g.color}` : "none" }} />
               <span className="legend-name">{g.name}</span>
               <div className="legend-right">
                 <span className="legend-stat">{fmt(g.population * 1000)}</span>
-                <button
-                  className="fly-btn"
-                  title={`Fly to ${g.originName}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const c = centroids[g.origin];
-                    if (c) onFlyTo({ lat: c[0], lng: c[1], altitude: 1.6 });
-                  }}
-                >
-                  ◎
-                </button>
+                <button className="fly-btn" title={`Fly to ${g.originName}`} onClick={(e) => { e.stopPropagation(); const c = centroids[g.origin]; if (c) onFlyTo({ lat: c[0], lng: c[1], altitude: 1.6 }); }}>◎</button>
               </div>
             </li>
           );
         })}
       </ul>
 
-      {selectedGroups.length > 0 && topDests.length > 0 && (
+      {topDests.length > 0 && (
         <div className="detail-card">
-          <h5 className="detail-subhead">
-            {direction === "outbound" ? "Top destinations" : "Top origins"} (combined)
-          </h5>
+          <h5 className="detail-subhead">Top destinations · {year}</h5>
           {topDests.map(([iso, pop]) => {
-            const maxPop = topDests[0][1];
-            const barPct = (pop / maxPop) * 100;
+            const barPct = (pop / topDests[0][1]) * 100;
             return (
               <div key={iso} className="dest-bar-row">
-                <button
-                  className="dest-fly"
-                  onClick={() => {
-                    const c = centroids[iso];
-                    if (c) onFlyTo({ lat: c[0], lng: c[1], altitude: 1.8 });
-                  }}
-                >
-                  {iso}
-                </button>
+                <button className="dest-fly" onClick={() => { const c = centroids[iso]; if (c) onFlyTo({ lat: c[0], lng: c[1], altitude: 1.8 }); }}>{iso}</button>
                 <div className="dest-bar-wrap">
-                  <div
-                    className="dest-bar-fill"
-                    style={{
-                      width: `${barPct}%`,
-                      background: selectedGroups[0]?.color ?? "#38bdf8",
-                    }}
-                  />
+                  <div className="dest-bar-fill" style={{ width: `${barPct}%`, background: selectedGroups[0]?.color ?? "#38bdf8" }} />
                 </div>
                 <span className="dest-pop">{fmt(pop)}</span>
               </div>
             );
           })}
           <p className="sidebar-note" style={{ marginTop: 6 }}>
-            Arc thickness scales with population.{" "}
-            {direction === "inbound" ? "Arcs flow into origin." : "Arcs flow from origin."}
+            Arc thickness ∝ population. {direction === "inbound" ? "Arcs flow into origin." : "Arcs flow from origin."}
           </p>
         </div>
       )}

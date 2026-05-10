@@ -42,21 +42,35 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
   const [search, setSearch] = useState("");
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("total");
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set());
+  const [hovered, setHovered] = useState<string | null>(null);
 
   const highlights = useMemo<CountryHighlight[]>(() => {
-    const out: CountryHighlight[] = [];
-    const seen = new Map<string, { color: string; label: string }>();
+    // Build iso → [matching selected languages]
+    const isoLangs = new Map<string, LanguageGroup[]>();
     languageGroups.forEach((lang) => {
       if (!selected.has(lang.id)) return;
       lang.countries.forEach((iso) => {
-        if (!seen.has(iso)) {
-          seen.set(iso, { color: lang.color, label: lang.name });
-          out.push({ iso, color: lang.color, label: lang.name });
-        }
+        if (!isoLangs.has(iso)) isoLangs.set(iso, []);
+        isoLangs.get(iso)!.push(lang);
       });
     });
-    return out;
-  }, [selected]);
+
+    if (hovered) {
+      const hovLang = languageGroups.find((l) => l.id === hovered);
+      const hovIsos = new Set(hovLang?.countries ?? []);
+      return Array.from(isoLangs.entries()).map(([iso, langs]) => ({
+        iso,
+        color: hovIsos.has(iso) ? (langs.length >= 2 ? "#f5f0ff" : langs[0].color) : "#192033",
+        label: langs.map((l) => l.name).join(" · "),
+      }));
+    }
+
+    return Array.from(isoLangs.entries()).map(([iso, langs]) => ({
+      iso,
+      color: langs.length >= 2 ? "#f0eeff" : langs[0].color,
+      label: langs.map((l) => l.name).join(" · "),
+    }));
+  }, [selected, hovered]);
 
   // Coverage: unique countries covered by selected languages → sum populations
   const coverage = useMemo(() => {
@@ -218,6 +232,8 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
                   <li
                     key={lang.id}
                     className={`legend-item ${selected.has(lang.id) ? "active" : "inactive"}`}
+                    onMouseEnter={() => selected.has(lang.id) && setHovered(lang.id)}
+                    onMouseLeave={() => setHovered(null)}
                   >
                     <span
                       className="legend-swatch"
@@ -257,7 +273,7 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
       })}
 
       <p className="sidebar-note" style={{ marginTop: 4 }}>
-        Countries with multiple official languages show the first active match. ◎ flies camera to that language region.
+        Near-white countries overlap 2+ selected languages. Hover a language to isolate its region. ◎ flies camera to that language region.
       </p>
     </>
   );

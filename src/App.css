@@ -228,6 +228,23 @@ body {
 }
 .toggle-all-btn:hover { color: var(--text); border-color: var(--accent); }
 
+/* Isolate mode button */
+.isolate-btn {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-dim);
+  font-size: 11px; cursor: pointer;
+  transition: all 0.15s;
+}
+.isolate-btn:hover { color: var(--text); border-color: var(--accent); }
+.isolate-btn.isolate-on {
+  background: #1e2d45;
+  color: #7ec8f0;
+  border-color: #7ec8f0;
+}
+
 /* Clear */
 .clear-btn {
   padding: 3px 8px;

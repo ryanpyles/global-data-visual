@@ -3,9 +3,15 @@ import { diasporaGroups } from "../data/diaspora";
 import { centroids } from "../data/countryCentroids";
 import { ArcData, CountryHighlight, GlobeState, FlyTarget } from "../types";
 
+interface StoryConfig {
+  selectedIds?: string[];
+  yearIdx?: number;
+}
+
 interface Props {
   onStateChange: (s: GlobeState) => void;
   onFlyTo: (t: FlyTarget) => void;
+  storyConfig?: StoryConfig;
 }
 
 const fmt = (n: number) =>
@@ -28,13 +34,13 @@ const YEAR_SCALE: Record<string, [number, number, number, number]> = {
   romani:   [0.80, 0.85, 0.90, 1.0],
 };
 
-const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
+const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    new Set([diasporaGroups[0].id])
+    storyConfig?.selectedIds ? new Set(storyConfig.selectedIds) : new Set([diasporaGroups[0].id])
   );
   const [search, setSearch] = useState("");
   const [direction, setDirection] = useState<ArcDir>("outbound");
-  const [yearIdx, setYearIdx] = useState<number>(3); // default: 2020
+  const [yearIdx, setYearIdx] = useState<number>(storyConfig?.yearIdx ?? 3);
 
   const year = YEARS[yearIdx];
 
@@ -89,6 +95,10 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
           const [oLat, oLng] = originCentroid;
           const [dLat, dLng] = centroids[country];
           const stroke = Math.max(0.25, Math.min(2.5, pct * 2.5));
+          // Altitude scales with population: major corridors arc high (feel heavy), minor routes stay low (feel fragile)
+          // Small hash from country codes adds organic variance so routes don't all feel identical
+          const hashVar = ((country.charCodeAt(0) + (country.charCodeAt(1) || 0)) % 16) * 0.005;
+          const altitude = Math.max(0.18, Math.min(0.78, stroke * 0.28 + 0.14 + hashVar));
           const isOut = direction === "outbound";
           arcs.push({
             startLat: isOut ? oLat : dLat,
@@ -98,6 +108,7 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
             color: isOut ? ["#ffffff", group.color] : [group.color, "#ffffff"],
             label: `${group.name}: ${fmt(population)} (${pctOfTotal}%)`,
             stroke,
+            altitude,
           });
         }
       });
@@ -233,8 +244,15 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
             );
           })}
           <p className="sidebar-note" style={{ marginTop: 6 }}>
-            Arc thickness ∝ population. {direction === "inbound" ? "Arcs flow into origin." : "Arcs flow from origin."}
+            Arc height ∝ population. {direction === "inbound" ? "Arcs flow into origin." : "Arcs flow from origin."}
           </p>
+        </div>
+      )}
+
+      {selectedGroups.length === 1 && (
+        <div className="factoid-card">
+          <div className="factoid-accent" style={{ background: selectedGroups[0].color }} />
+          <p className="factoid-text">{selectedGroups[0].factoid}</p>
         </div>
       )}
     </>

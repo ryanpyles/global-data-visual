@@ -4,9 +4,14 @@ import { populations, WORLD_POP } from "../data/countryPopulations";
 import { centroids } from "../data/countryCentroids";
 import { CountryHighlight, GlobeState, FlyTarget } from "../types";
 
+interface StoryConfig {
+  selectedIds?: string[];
+}
+
 interface Props {
   onStateChange: (s: GlobeState) => void;
   onFlyTo: (t: FlyTarget) => void;
+  storyConfig?: StoryConfig;
 }
 
 const ALL_IDS = new Set(languageGroups.map((l) => l.id));
@@ -37,8 +42,10 @@ const PRESETS: Preset[] = [
   },
 ];
 
-const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
-  const [selected, setSelected] = useState<Set<string>>(ALL_IDS);
+const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig }) => {
+  const [selected, setSelected] = useState<Set<string>>(
+    storyConfig?.selectedIds ? new Set(storyConfig.selectedIds) : ALL_IDS
+  );
   const [search, setSearch] = useState("");
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("total");
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set());

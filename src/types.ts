@@ -14,6 +14,7 @@ export interface ArcData {
   color: [string, string]; // [origin color, destination color]
   label: string;
   stroke: number; // line thickness proportional to population
+  altitude?: number; // arc height — larger = higher arc = visually heavier route
 }
 
 export interface RingData {

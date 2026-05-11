@@ -5,6 +5,7 @@ export interface DiasporaGroup {
   origin: string; // ISO Alpha-2 of origin country
   originName: string;
   population: number; // millions total diaspora
+  factoid: string;
   destinations: {
     country: string;
     population: number; // thousands
@@ -19,6 +20,7 @@ export const diasporaGroups: DiasporaGroup[] = [
     origin: "IN",
     originName: "India",
     population: 18,
+    factoid: "The world's largest diaspora — 18M people across 100+ countries. Gulf remittances alone exceed $40B/year, more than India's entire IT export revenue in 2000.",
     destinations: [
       { country: "US", population: 4400 },
       { country: "AE", population: 3500 },
@@ -47,6 +49,7 @@ export const diasporaGroups: DiasporaGroup[] = [
     origin: "CN",
     originName: "China",
     population: 50,
+    factoid: "50M overseas Chinese form the world's largest ethnic network. Southeast Asia's economies were built on their commerce — Indonesia, Thailand, and Malaysia all have Chinese-origin business elites who control outsized shares of GDP.",
     destinations: [
       { country: "ID", population: 10000 },
       { country: "TH", population: 7000 },
@@ -74,6 +77,7 @@ export const diasporaGroups: DiasporaGroup[] = [
     origin: "NG",
     originName: "Africa (broadly)",
     population: 40,
+    factoid: "The transatlantic slave trade moved 12M Africans across the ocean between 1500–1900. Their descendants built the Americas. Brazil alone has the second-largest African-descent population in the world after Nigeria.",
     destinations: [
       { country: "US", population: 46000 },
       { country: "BR", population: 55000 },
@@ -100,6 +104,7 @@ export const diasporaGroups: DiasporaGroup[] = [
     origin: "IL",
     originName: "Israel / Historical",
     population: 8,
+    factoid: "2,000 years of forced dispersal — from Babylon to Iberia to Eastern Europe to America. Each wave reshaped the center of gravity of global Jewish culture. The US now holds more Jewish people than Israel itself.",
     destinations: [
       { country: "US", population: 7200 },
       { country: "FR", population: 480 },
@@ -122,6 +127,7 @@ export const diasporaGroups: DiasporaGroup[] = [
     origin: "LB",
     originName: "Lebanon",
     population: 15,
+    factoid: "1 in 4 Lebanese lives abroad — a ratio unmatched by any comparably sized nation. Brazil alone holds more Lebanese-origin people than Lebanon itself. War, economic collapse, and political paralysis have been the engines.",
     destinations: [
       { country: "BR", population: 7000 },
       { country: "AR", population: 1200 },
@@ -144,6 +150,7 @@ export const diasporaGroups: DiasporaGroup[] = [
     origin: "MX",
     originName: "Mexico",
     population: 12,
+    factoid: "98% of the Mexican diaspora lives in a single country: the United States. The US-Mexico corridor is the world's largest bilateral migration system — $60B in annual remittances makes it Mexico's largest foreign income source.",
     destinations: [
       { country: "US", population: 11800 },
       { country: "CA", population: 100 },
@@ -159,6 +166,7 @@ export const diasporaGroups: DiasporaGroup[] = [
     origin: "IE",
     originName: "Ireland",
     population: 80,
+    factoid: "80M people claim Irish descent — 16× Ireland's actual population. Famine, colonial extraction, and economic despair between 1840–1920 created the modern Irish-American identity, which now shapes US foreign policy toward Europe.",
     destinations: [
       { country: "US", population: 35000 },
       { country: "GB", population: 700 },
@@ -176,6 +184,7 @@ export const diasporaGroups: DiasporaGroup[] = [
     origin: "IN",
     originName: "South Asia (Historical Origin)",
     population: 12,
+    factoid: "Stateless for 1,000 years. Romani people left northwest India around 1000 CE, spread westward through Persia and the Byzantine Empire. They remain Europe's largest ethnic minority — and its most persistently marginalized.",
     destinations: [
       { country: "RO", population: 2500 },
       { country: "HU", population: 900 },

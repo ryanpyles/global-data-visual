@@ -21,9 +21,9 @@ interface Props {
 
 // Bloom/ring config per mode
 const MODE_CONFIG: Record<TabId, { bloom: number; ringSpeed: number; ringPeriod: number }> = {
-  languages: { bloom: 0.7,  ringSpeed: 3,   ringPeriod: 900 },
-  diaspora:  { bloom: 0.65, ringSpeed: 3,   ringPeriod: 900 },
-  stateless: { bloom: 0.25, ringSpeed: 1.2, ringPeriod: 1800 },
+  languages: { bloom: 0.55, ringSpeed: 3,   ringPeriod: 900 },
+  diaspora:  { bloom: 0.48, ringSpeed: 3,   ringPeriod: 900 },
+  stateless: { bloom: 0.20, ringSpeed: 1.2, ringPeriod: 1800 },
 };
 
 const tooltipHtml = (d: any) =>
@@ -101,11 +101,14 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
         .width(w)
         .height(h);
 
-      // Auto-rotate
+      // Controls — inertial, weighted feel
       const controls = globe.controls();
       controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.35;
+      controls.autoRotateSpeed = 0.22;
       controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.rotateSpeed = 0.55;
+      controls.zoomSpeed = 0.8;
 
       const el = containerRef.current;
       const pause = () => { controls.autoRotate = false; };
@@ -121,7 +124,7 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
       const camera = globe.camera();
       const composer = new EffectComposer(renderer);
       composer.addPass(new RenderPass(scene, camera));
-      const bloomPass = new UnrealBloomPass(new Vector2(w, h), 0.7, 0.4, 0.05);
+      const bloomPass = new UnrealBloomPass(new Vector2(w, h), 0.55, 0.5, 0.08);
       composer.addPass(bloomPass);
       composerRef.current = composer;
       bloomPassRef.current = bloomPass;
@@ -138,16 +141,20 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
         }
       };
 
-      // Arc defaults
+      // Arc defaults — altitude scales with stroke (large routes arc higher)
       globe
         .arcColor("color")
-        .arcAltitude(0.35)
+        .arcAltitude((d: any) => d.altitude ?? 0.35)
         .arcStroke("stroke")
-        .arcDashLength(0.35)
-        .arcDashGap(0.15)
-        .arcDashAnimateTime(2200)
+        .arcDashLength(0.38)
+        .arcDashGap(0.12)
+        .arcDashAnimateTime((d: any) => {
+          // Faster major routes feel more urgent; tiny routes feel fragile
+          const base = d.stroke ?? 0.5;
+          return Math.max(1000, Math.round(2800 - base * 600));
+        })
         .arcLabel((d: any) =>
-          `<div style="background:rgba(5,13,26,0.9);padding:6px 10px;border-radius:6px;color:#e2eaf4;font-size:12px;font-family:system-ui,sans-serif">${d.label}</div>`
+          `<div style="background:rgba(5,13,26,0.92);padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);color:#e2eaf4;font-size:12px;font-family:system-ui,sans-serif;letter-spacing:0.01em">${d.label}</div>`
         );
 
       // Ring defaults

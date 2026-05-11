@@ -37,19 +37,25 @@ const fmt = (n: number) =>
 const TOTAL_STATELESS = statelessGroups.reduce((s, g) => s + g.population, 0); // thousands
 const ALL_IDS = new Set(statelessGroups.map((g) => g.id));
 
+type SortKey = "population" | "name" | "since";
+
 const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
   const [selected, setSelected] = useState<Set<string>>(ALL_IDS);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [isolate, setIsolate] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("population");
 
-  const filtered = useMemo(
-    () =>
-      statelessGroups.filter(
-        (g) => !search || g.name.toLowerCase().includes(search.toLowerCase())
-      ),
-    [search]
-  );
+  const filtered = useMemo(() => {
+    const base = statelessGroups.filter(
+      (g) => !search || g.name.toLowerCase().includes(search.toLowerCase())
+    );
+    return [...base].sort((a, b) => {
+      if (sortKey === "name") return a.name.localeCompare(b.name);
+      if (sortKey === "since") return parseInt(a.since) - parseInt(b.since);
+      return b.population - a.population;
+    });
+  }, [search, sortKey]);
 
   const globeState = useMemo<GlobeState>(() => {
     const highlights: CountryHighlight[] = [];
@@ -122,7 +128,7 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
           />
         </div>
         <div className="framing-note">
-          Global stateless: ~{fmt(TOTAL_STATELESS)} per UNHCR
+          Est. global stateless: ~{fmt(TOTAL_STATELESS)} · UNHCR 2023 · populations in thousands (K) / millions (M)
         </div>
       </div>
 
@@ -153,7 +159,11 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
           placeholder="Search group…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search stateless groups"
         />
+        {search && (
+          <span className="search-count">{filtered.length} of {statelessGroups.length}</span>
+        )}
       </div>
 
       <div className="sidebar-row-actions">
@@ -163,13 +173,32 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
         >
           {allOn ? "Deselect All" : "Select All"}
         </button>
-        <button
-          className={`isolate-btn ${isolate ? "isolate-on" : ""}`}
-          onClick={() => setIsolate((v) => !v)}
-          title="Isolate mode: dim unselected groups on globe"
-        >
-          {isolate ? "◉ Isolate" : "○ Isolate"}
-        </button>
+        <div className="stateless-toolbar">
+          <select
+            className="sort-select"
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            aria-label="Sort groups by"
+            title="Sort order"
+          >
+            <option value="population">↓ Population</option>
+            <option value="name">A–Z Name</option>
+            <option value="since">↑ Earliest</option>
+          </select>
+          <label
+            className="toggle-switch"
+            title="Dim unselected groups on globe to focus on selected ones"
+          >
+            <input
+              type="checkbox"
+              className="toggle-input"
+              checked={isolate}
+              onChange={(e) => setIsolate(e.target.checked)}
+            />
+            <span className="toggle-track"><span className="toggle-thumb" /></span>
+            <span className="toggle-label">Isolate</span>
+          </label>
+        </div>
       </div>
 
       <ul className="legend-list stateless-list">
@@ -203,6 +232,8 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
                   <span className="legend-stat">{fmt(g.population)}</span>
                   <button
                     className="fly-btn"
+                    title={`Fly globe to ${g.name} region`}
+                    aria-label={`Fly globe to ${g.name} region`}
                     onClick={(e) => {
                       e.stopPropagation();
                       const first = g.countries.find((iso) => centroids[iso]);
@@ -217,7 +248,9 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
                   <button
                     className="expand-btn"
                     onClick={() => toggleExpand(g.id)}
-                    title="Show context"
+                    title={exp ? "Collapse context" : "Expand context"}
+                    aria-expanded={exp}
+                    aria-label={`${exp ? "Collapse" : "Expand"} context for ${g.name}`}
                   >
                     {exp ? "▲" : "▼"}
                   </button>
@@ -247,6 +280,9 @@ const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
                       })}
                     </div>
                   )}
+                  <p className="context-source">
+                    Est. pop: {fmt(g.population)} · Since {g.since} · Source: UNHCR / regional estimates
+                  </p>
                 </div>
               )}
             </li>

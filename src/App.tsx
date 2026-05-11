@@ -262,7 +262,7 @@ const App: React.FC = () => {
                 {STORIES.map((s) => (
                   <div key={s.id} className="pin-item" onClick={() => loadStory(s)}>
                     <span className="pin-tab-icon">
-                      {TABS.find((t) => t.id === s.tab)?.label.charAt(0)}
+                      {s.tab === "languages" ? <GlobeIcon /> : s.tab === "diaspora" ? <DiasporaIcon /> : <StatelessIcon />}
                     </span>
                     <div className="story-item-text">
                       <span className="pin-label">{s.title}</span>
@@ -293,7 +293,7 @@ const App: React.FC = () => {
                 {pins.map((p) => (
                   <div key={p.id} className="pin-item" onClick={() => loadPin(p)}>
                     <span className="pin-tab-icon">
-                      {TABS.find((t) => t.id === p.tab)?.label.charAt(0)}
+                      {p.tab === "languages" ? <GlobeIcon /> : p.tab === "diaspora" ? <DiasporaIcon /> : <StatelessIcon />}
                     </span>
                     <span className="pin-label">{p.label}</span>
                     <button className="pin-delete" onClick={(e) => deletePin(p.id, e)}>✕</button>

@@ -149,11 +149,21 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig 
       <h3 className="sidebar-title">Diaspora Groups</h3>
 
       {/* Direction toggle */}
-      <div className="toggle-row">
-        <button className={`seg-btn ${direction === "outbound" ? "seg-active" : ""}`} onClick={() => setDirection("outbound")}>
+      <div className="toggle-row" role="group" aria-label="Arc direction">
+        <button
+          className={`seg-btn ${direction === "outbound" ? "seg-active" : ""}`}
+          onClick={() => setDirection("outbound")}
+          aria-pressed={direction === "outbound"}
+          title="Show arcs flowing outward from origin country"
+        >
           ↗ Outbound
         </button>
-        <button className={`seg-btn ${direction === "inbound" ? "seg-active" : ""}`} onClick={() => setDirection("inbound")}>
+        <button
+          className={`seg-btn ${direction === "inbound" ? "seg-active" : ""}`}
+          onClick={() => setDirection("inbound")}
+          aria-pressed={direction === "inbound"}
+          title="Show arcs flowing inward to origin country"
+        >
           ↙ Inbound
         </button>
       </div>
@@ -172,6 +182,11 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig 
           step={1}
           value={yearIdx}
           onChange={(e) => setYearIdx(Number(e.target.value))}
+          aria-label={`Year: ${year}`}
+          aria-valuemin={0}
+          aria-valuemax={3}
+          aria-valuenow={yearIdx}
+          aria-valuetext={String(year)}
         />
         <div className="time-ticks">
           {YEARS.map((y, i) => (
@@ -206,7 +221,13 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig 
           placeholder="Search diaspora…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search diaspora groups"
         />
+        {search && (
+          <span className="search-count">
+            {filtered.length} of {diasporaGroups.length}
+          </span>
+        )}
       </div>
 
       <ul className="legend-list">
@@ -230,7 +251,7 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig 
 
       {topDests.length > 0 && (
         <div className="detail-card">
-          <h5 className="detail-subhead">Top destinations · {year}</h5>
+          <h5 className="detail-subhead">Top destinations for selected groups · {year}</h5>
           {topDests.map(([iso, pop]) => {
             const barPct = (pop / topDests[0][1]) * 100;
             return (

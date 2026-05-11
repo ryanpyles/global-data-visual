@@ -20,22 +20,26 @@ type SpeakerMode = "total" | "native";
 
 type Preset = {
   label: string;
+  title: string;
   ids: string[];
 };
 
 const PRESETS: Preset[] = [
-  { label: "All", ids: languageGroups.map((l) => l.id) },
-  { label: "None", ids: [] },
+  { label: "All", title: "Select all languages", ids: languageGroups.map((l) => l.id) },
+  { label: "None", title: "Clear all selections", ids: [] },
   {
     label: "UN Official",
+    title: "6 UN official languages: Arabic, Chinese, English, French, Russian, Spanish",
     ids: ["english", "french", "spanish", "arabic", "russian", "mandarin"],
   },
   {
     label: "Top 5",
+    title: "Top 5 by total speaker count: Mandarin, English, Hindi, Spanish, Arabic",
     ids: ["mandarin", "english", "hindi", "spanish", "arabic"],
   },
   {
     label: "Indo-European",
+    title: "Indo-European family: Germanic, Romance, Slavic, Indo-Iranian",
     ids: languageGroups.filter((l) =>
       ["Germanic","Romance","Slavic","Indo-Iranian"].includes(l.family)
     ).map((l) => l.id),
@@ -110,6 +114,14 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
 
   const applyPreset = (ids: string[]) => setSelected(new Set(ids));
 
+  // Which preset exactly matches current selection (if any)
+  const activePresetLabel = useMemo(() => {
+    return PRESETS.find((p) => {
+      if (p.ids.length !== selected.size) return false;
+      return p.ids.every((id) => selected.has(id));
+    })?.label ?? null;
+  }, [selected]);
+
   const toggleFamily = (family: string) =>
     setCollapsedFamilies((prev) => {
       const next = new Set(prev);
@@ -153,10 +165,12 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
         {PRESETS.map((p) => (
           <button
             key={p.label}
-            className="preset-btn"
+            className={`preset-btn ${activePresetLabel === p.label ? "preset-active" : ""}`}
             onClick={() => applyPreset(p.ids)}
+            title={p.title}
+            aria-pressed={activePresetLabel === p.label}
           >
-            {p.label}
+            {p.label === "Top 5" ? "Top 5 langs" : p.label}
           </button>
         ))}
       </div>
@@ -179,20 +193,22 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
 
       {/* Coverage bar */}
       <div className="coverage-block">
-        <div className="coverage-label">
-          <span>Language reach</span>
-          <span className="coverage-pct">{coverage.pct.toFixed(0)}% of world</span>
+        <div className="coverage-header">
+          <span className="coverage-title">Language reach</span>
+          <span className="coverage-pct">{coverage.pct.toFixed(0)}% of nations</span>
         </div>
         <div className="coverage-bar-track">
-          <div
-            className="coverage-bar-fill"
-            style={{ width: `${coverage.pct}%` }}
-          />
+          <div className="coverage-bar-fill" style={{ width: `${coverage.pct}%` }} />
         </div>
-        <div className="coverage-detail">
-          ~{coverage.speakers.toLocaleString()}M{" "}
-          {speakerMode === "native" ? "native" : "total"} speakers ·{" "}
-          {coverage.pop.toLocaleString()}M people in covered countries
+        <div className="coverage-stats-grid">
+          <div className="coverage-stat">
+            <span className="coverage-stat-num">~{coverage.speakers.toLocaleString()}M</span>
+            <span className="coverage-stat-label">{speakerMode === "native" ? "native" : "total"} speakers</span>
+          </div>
+          <div className="coverage-stat">
+            <span className="coverage-stat-num">{coverage.pop.toLocaleString()}M</span>
+            <span className="coverage-stat-label">pop. in covered countries</span>
+          </div>
         </div>
       </div>
 
@@ -203,7 +219,13 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
           placeholder="Search language or family…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search languages"
         />
+        {search && (
+          <span className="search-count">
+            {Object.values(grouped).flat().length} result{Object.values(grouped).flat().length !== 1 ? "s" : ""}
+          </span>
+        )}
       </div>
 
       {/* Grouped list */}
@@ -259,7 +281,8 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
                       </span>
                       <button
                         className="fly-btn"
-                        title={`Fly to ${lang.name}`}
+                        title={`Fly globe to ${lang.name} region`}
+                        aria-label={`Fly globe to ${lang.name} region`}
                         onClick={() => {
                           const first = lang.countries.find((iso) => centroids[iso]);
                           if (first) {
@@ -280,7 +303,7 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
       })}
 
       <p className="sidebar-note" style={{ marginTop: 4 }}>
-        Near-white countries overlap 2+ selected languages. Hover a language to isolate its region. ◎ flies camera to that language region.
+        Near-white countries overlap 2+ selected languages. Hover to isolate a region. M = millions of speakers.
       </p>
     </>
   );

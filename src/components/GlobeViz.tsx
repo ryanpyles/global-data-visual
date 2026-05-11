@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from "react";
 import Globe, { GlobeInstance } from "globe.gl";
-import { Vector2 } from "three";
+import { Vector2, BufferGeometry, BufferAttribute, PointsMaterial, Points, Color } from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
@@ -19,11 +19,12 @@ interface Props {
   onCountryClick: (iso: string, name: string) => void;
 }
 
-// Bloom/ring config per mode
-const MODE_CONFIG: Record<TabId, { bloom: number; ringSpeed: number; ringPeriod: number }> = {
-  languages: { bloom: 0.55, ringSpeed: 3,   ringPeriod: 900 },
-  diaspora:  { bloom: 0.48, ringSpeed: 3,   ringPeriod: 900 },
-  stateless: { bloom: 0.20, ringSpeed: 1.2, ringPeriod: 1800 },
+// Bloom is restrained: threshold 0.68+ means only genuinely bright pixels bloom.
+// Strength kept low so glow enhances edges, not floods the scene.
+const MODE_CONFIG: Record<TabId, { bloom: number; radius: number; threshold: number; ringSpeed: number; ringPeriod: number }> = {
+  languages: { bloom: 0.22, radius: 0.32, threshold: 0.68, ringSpeed: 3,   ringPeriod: 900 },
+  diaspora:  { bloom: 0.18, radius: 0.28, threshold: 0.72, ringSpeed: 3,   ringPeriod: 900 },
+  stateless: { bloom: 0.10, radius: 0.22, threshold: 0.76, ringSpeed: 1.2, ringPeriod: 1800 },
 };
 
 const tooltipHtml = (d: any) =>
@@ -94,10 +95,9 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
 
       globe
         .globeImageUrl("/earth-blue-marble.jpg")
-        .backgroundImageUrl("/night-sky.png")
         .showAtmosphere(true)
-        .atmosphereColor("#1a4a8a")
-        .atmosphereAltitude(0.14)
+        .atmosphereColor("#1a5a9a")
+        .atmosphereAltitude(0.16)
         .width(w)
         .height(h);
 
@@ -118,16 +118,49 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
       el.addEventListener("touchstart", pause, { passive: true });
       el.addEventListener("touchend", resume, { passive: true });
 
-      // Bloom
+      // Bloom — restrained: high threshold, low strength, small radius
+      // This means only selected-region edges glow; oceans/unselected land stay dark
       const renderer = globe.renderer();
       const scene = globe.scene();
       const camera = globe.camera();
       const composer = new EffectComposer(renderer);
       composer.addPass(new RenderPass(scene, camera));
-      const bloomPass = new UnrealBloomPass(new Vector2(w, h), 0.55, 0.5, 0.08);
+      const initCfg = MODE_CONFIG["languages"];
+      const bloomPass = new UnrealBloomPass(new Vector2(w, h), initCfg.bloom, initCfg.radius, initCfg.threshold);
       composer.addPass(bloomPass);
       composerRef.current = composer;
       bloomPassRef.current = bloomPass;
+
+      // Custom star field — replaces backgroundImageUrl with dimensional depth
+      scene.background = new Color(0x020810);
+      const starGeo = new BufferGeometry();
+      const starCount = 3200;
+      const starPos = new Float32Array(starCount * 3);
+      const starCol = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = 160 + Math.random() * 140;
+        starPos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+        starPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+        starPos[i * 3 + 2] = r * Math.cos(phi);
+        const rnd = Math.random();
+        if (rnd < 0.04) {
+          // Warm yellow star
+          starCol[i * 3] = 1.0; starCol[i * 3 + 1] = 0.90; starCol[i * 3 + 2] = 0.60;
+        } else if (rnd < 0.09) {
+          // Blue giant
+          starCol[i * 3] = 0.55; starCol[i * 3 + 1] = 0.72; starCol[i * 3 + 2] = 1.0;
+        } else {
+          // White-cool
+          const v = 0.45 + Math.random() * 0.45;
+          starCol[i * 3] = v * 0.88; starCol[i * 3 + 1] = v * 0.92; starCol[i * 3 + 2] = v;
+        }
+      }
+      starGeo.setAttribute("position", new BufferAttribute(starPos, 3));
+      starGeo.setAttribute("color",    new BufferAttribute(starCol, 3));
+      const starMat = new PointsMaterial({ size: 0.55, sizeAttenuation: true, vertexColors: true, transparent: true, opacity: 0.70 });
+      scene.add(new Points(starGeo, starMat));
 
       let composing = false;
       const origRender = renderer.render.bind(renderer);
@@ -198,11 +231,13 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
     // Adjust bloom + ring speed when mode changes
     useEffect(() => {
       const cfg = MODE_CONFIG[mode];
-      if (bloomPassRef.current) bloomPassRef.current.strength = cfg.bloom;
-      const g = globeRef.current as any;
-      if (g) {
-        g.ringPropagationSpeed(cfg.ringSpeed).ringRepeatPeriod(cfg.ringPeriod);
+      if (bloomPassRef.current) {
+        bloomPassRef.current.strength  = cfg.bloom;
+        bloomPassRef.current.radius    = cfg.radius;
+        bloomPassRef.current.threshold = cfg.threshold;
       }
+      const g = globeRef.current as any;
+      if (g) g.ringPropagationSpeed(cfg.ringSpeed).ringRepeatPeriod(cfg.ringPeriod);
     }, [mode]);
 
     // Sync polygons

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, ReactNode } from "react";
 import "./App.css";
 import GlobeViz, { GlobeHandle } from "./components/GlobeViz";
 import LanguagesSidebar from "./components/LanguagesSidebar";
@@ -8,10 +8,36 @@ import CountryPanel from "./components/CountryPanel";
 import IntroOverlay, { shouldShowIntro, markIntroSeen } from "./components/IntroOverlay";
 import { TabId, GlobeState, FlyTarget } from "./types";
 
-const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: "languages", label: "Languages", icon: "🌐" },
-  { id: "diaspora",  label: "Diaspora",  icon: "✈️" },
-  { id: "stateless", label: "Stateless", icon: "⚠️" },
+const GlobeIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
+    <circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.15"/>
+    <path d="M7.5 1.5 C5.3 3.8 5.3 11.2 7.5 13.5" stroke="currentColor" strokeWidth="1.15" fill="none"/>
+    <path d="M7.5 1.5 C9.7 3.8 9.7 11.2 7.5 13.5" stroke="currentColor" strokeWidth="1.15" fill="none"/>
+    <line x1="1.8" y1="7.5" x2="13.2" y2="7.5" stroke="currentColor" strokeWidth="1.15"/>
+  </svg>
+);
+const DiasporaIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
+    <circle cx="2.5" cy="7.5" r="1.4" fill="currentColor"/>
+    <path d="M3.9 7.2 Q6.5 3.5 10.8 3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" fill="none"/>
+    <path d="M3.9 7.5 L10.6 7.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
+    <path d="M3.9 7.8 Q6.5 11.5 10.8 12" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" fill="none"/>
+    <circle cx="12" cy="3" r="1.4" fill="currentColor"/>
+    <circle cx="12" cy="7.5" r="1.4" fill="currentColor"/>
+    <circle cx="12" cy="12" r="1.4" fill="currentColor"/>
+  </svg>
+);
+const StatelessIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
+    <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.15" strokeDasharray="2.8 2.2"/>
+    <circle cx="7.5" cy="7.5" r="1.4" fill="currentColor" opacity="0.6"/>
+  </svg>
+);
+
+const TABS: { id: TabId; label: string; Icon: () => ReactNode }[] = [
+  { id: "languages", label: "Languages", Icon: GlobeIcon },
+  { id: "diaspora",  label: "Diaspora",  Icon: DiasporaIcon },
+  { id: "stateless", label: "Stateless", Icon: StatelessIcon },
 ];
 
 const EMPTY_STATE: GlobeState = { highlights: [], arcs: [], rings: [] };
@@ -201,8 +227,10 @@ const App: React.FC = () => {
 
       <header className="app-header">
         <div className="header-title">
-          <span className="header-icon">🌍</span>
-          <h1>Global Human Geography</h1>
+          <div className="header-wordmark">
+            <h1>Global Human Geography</h1>
+            <p className="header-tagline">Civilization is movement.</p>
+          </div>
         </div>
 
         <nav className="tab-nav">
@@ -211,8 +239,9 @@ const App: React.FC = () => {
               key={t.id}
               className={`tab-btn ${activeTab === t.id ? "tab-active" : ""}`}
               onClick={() => handleTabChange(t.id)}
+              title={t.label}
             >
-              <span className="tab-icon">{t.icon}</span>
+              <span className="tab-icon"><t.Icon /></span>
               <span className="tab-label">{t.label}</span>
             </button>
           ))}
@@ -233,7 +262,7 @@ const App: React.FC = () => {
                 {STORIES.map((s) => (
                   <div key={s.id} className="pin-item" onClick={() => loadStory(s)}>
                     <span className="pin-tab-icon">
-                      {TABS.find((t) => t.id === s.tab)?.icon}
+                      {TABS.find((t) => t.id === s.tab)?.label.charAt(0)}
                     </span>
                     <div className="story-item-text">
                       <span className="pin-label">{s.title}</span>
@@ -264,7 +293,7 @@ const App: React.FC = () => {
                 {pins.map((p) => (
                   <div key={p.id} className="pin-item" onClick={() => loadPin(p)}>
                     <span className="pin-tab-icon">
-                      {TABS.find((t) => t.id === p.tab)?.icon}
+                      {TABS.find((t) => t.id === p.tab)?.label.charAt(0)}
                     </span>
                     <span className="pin-label">{p.label}</span>
                     <button className="pin-delete" onClick={(e) => deletePin(p.id, e)}>✕</button>

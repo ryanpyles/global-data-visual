@@ -729,9 +729,71 @@ body {
 .story-card-close:hover { color: var(--text); }
 
 /* Stories dropdown extras */
-.stories-dropdown { width: 280px; }
+.stories-dropdown { width: 320px; }
+.story-pin-item { align-items: flex-start !important; }
 .story-item-text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
 .story-item-sub { font-size: 10px; color: var(--text-dim); }
+
+/* Story category badges */
+.story-cat-badge {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 3px; white-space: nowrap; flex-shrink: 0;
+  border: 1px solid currentColor; opacity: 0.75;
+}
+.cat-corridor { color: #38bdf8; }
+.cat-collapse  { color: #f87171; }
+.cat-empire    { color: #a78bfa; }
+.cat-stateless { color: #94a3b8; }
+.cat-reverse   { color: #34d399; }
+
+/* Story card beat navigation */
+.story-card-meta { display: flex; flex-direction: column; gap: 3px; }
+.story-card-meta .story-cat-badge { align-self: flex-start; margin-bottom: 2px; }
+.story-card-text {
+  font-size: 13px; color: var(--text-dim); line-height: 1.72;
+  margin: 10px 0;
+  animation: beat-fade 0.3s ease-out;
+}
+@keyframes beat-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.story-beat-nav {
+  display: flex; align-items: center; gap: 10px; margin-top: 12px;
+}
+.beat-prev, .beat-next {
+  background: none; border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-dim); font-size: 14px; width: 28px; height: 28px;
+  border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s; flex-shrink: 0;
+}
+.beat-prev:hover:not(:disabled), .beat-next:hover:not(:disabled) {
+  border-color: var(--accent); color: var(--accent);
+}
+.beat-prev:disabled, .beat-next:disabled { opacity: 0.28; cursor: default; }
+
+.beat-dots {
+  display: flex; gap: 5px; flex: 1; justify-content: center; align-items: center;
+}
+.beat-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.18);
+  border: none; cursor: pointer; padding: 0;
+  transition: all 0.18s;
+}
+.beat-dot-past { background: rgba(56,189,248,0.35); }
+.beat-dot-active {
+  background: var(--accent);
+  width: 18px; border-radius: 3px;
+  box-shadow: 0 0 6px rgba(56,189,248,0.5);
+}
+.beat-dot:hover:not(.beat-dot-active) { background: rgba(255,255,255,0.35); }
+
+.beat-counter {
+  font-size: 9px; color: var(--text-dim); opacity: 0.5;
+  text-align: right; margin-top: 5px; letter-spacing: 0.05em;
+}
 
 /* ── Factoid card ── */
 .factoid-card {

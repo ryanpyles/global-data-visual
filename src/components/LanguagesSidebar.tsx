@@ -6,6 +6,7 @@ import { CountryHighlight, GlobeState, FlyTarget } from "../types";
 
 interface StoryConfig {
   selectedIds?: string[];
+  configKey?: string;
 }
 
 interface Props {
@@ -51,6 +52,12 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
     storyConfig?.selectedIds ? new Set(storyConfig.selectedIds) : ALL_IDS
   );
   const [search, setSearch] = useState("");
+
+  // Respond to beat-by-beat story config changes without full remount
+  useEffect(() => {
+    if (!storyConfig?.configKey) return;
+    if (storyConfig.selectedIds) setSelected(new Set(storyConfig.selectedIds));
+  }, [storyConfig?.configKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("total");
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set());
   const [hovered, setHovered] = useState<string | null>(null);

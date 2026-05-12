@@ -6,6 +6,8 @@ import { ArcData, CountryHighlight, GlobeState, FlyTarget } from "../types";
 interface StoryConfig {
   selectedIds?: string[];
   yearIdx?: number;
+  direction?: ArcDir;
+  configKey?: string; // changes per beat so useEffect can respond
 }
 
 interface Props {
@@ -39,8 +41,16 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig 
     storyConfig?.selectedIds ? new Set(storyConfig.selectedIds) : new Set([diasporaGroups[0].id])
   );
   const [search, setSearch] = useState("");
-  const [direction, setDirection] = useState<ArcDir>("outbound");
+  const [direction, setDirection] = useState<ArcDir>(storyConfig?.direction ?? "outbound");
   const [yearIdx, setYearIdx] = useState<number>(storyConfig?.yearIdx ?? 3);
+
+  // Respond to beat-by-beat story config changes without full remount
+  useEffect(() => {
+    if (!storyConfig?.configKey) return;
+    if (storyConfig.selectedIds) setSelectedIds(new Set(storyConfig.selectedIds));
+    if (storyConfig.yearIdx !== undefined) setYearIdx(storyConfig.yearIdx);
+    if (storyConfig.direction) setDirection(storyConfig.direction);
+  }, [storyConfig?.configKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const year = YEARS[yearIdx];
 

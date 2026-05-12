@@ -6,7 +6,7 @@ import DiasporaSidebar from "./components/DiasporaSidebar";
 import StatelessSidebar from "./components/StatelessSidebar";
 import CountryPanel from "./components/CountryPanel";
 import IntroOverlay, { shouldShowIntro, markIntroSeen } from "./components/IntroOverlay";
-import { TabId, GlobeState, FlyTarget } from "./types";
+import { TabId, GlobeState, FlyTarget, StoryBeat } from "./types";
 
 const GlobeIcon = () => (
   <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
@@ -51,75 +51,239 @@ interface Pin {
   globeState: GlobeState;
 }
 
+type StoryCategory = "corridor" | "collapse" | "empire" | "stateless" | "reverse";
+
 interface Story {
   id: string;
   title: string;
   subtitle: string;
   tab: TabId;
-  narrative: string;
-  diasporaIds?: string[];
-  langIds?: string[];
-  yearIdx?: number;
-  flyTo?: FlyTarget;
+  category: StoryCategory;
+  beats: StoryBeat[];
 }
 
 const STORIES: Story[] = [
   {
     id: "gulf-labor",
-    title: "Gulf Labor Migration",
-    subtitle: "1990 – 2020",
+    title: "The Corridor That Stayed Open",
+    subtitle: "Indian & Lebanese · Gulf States · 1990–2020",
     tab: "diaspora",
-    diasporaIds: ["indian", "lebanese"],
-    yearIdx: 0,
-    flyTo: { lat: 24, lng: 54, altitude: 1.8 },
-    narrative: "Since the 1970s oil boom, the Gulf states transformed desert into megacity on the backs of South Asian and Arab labor. Drag the year slider to watch migration corridors shift as Gulf wealth concentrated — and as Lebanon collapsed.",
+    category: "corridor",
+    beats: [
+      {
+        text: "1990. The Gulf needs workers. South Asia needs wages.",
+        selectedIds: ["indian"],
+        yearIdx: 0,
+        direction: "outbound",
+        flyTo: { lat: 20, lng: 72, altitude: 2.2 },
+      },
+      {
+        text: "A corridor forms without a treaty. Labor arbitrage is its own diplomacy.",
+        selectedIds: ["indian"],
+        yearIdx: 0,
+        direction: "outbound",
+        flyTo: { lat: 24, lng: 54, altitude: 1.8 },
+      },
+      {
+        text: "By 2000: 2.6 million Indians in the UAE alone. Remittances exceed all foreign aid to India.",
+        selectedIds: ["indian"],
+        yearIdx: 1,
+        direction: "outbound",
+        flyTo: { lat: 24, lng: 54, altitude: 1.6 },
+      },
+      {
+        text: "Lebanon sends a parallel cohort — professionals, not laborers. The Gulf absorbs both.",
+        selectedIds: ["indian", "lebanese"],
+        yearIdx: 3,
+        direction: "outbound",
+        flyTo: { lat: 24, lng: 45, altitude: 1.9 },
+      },
+    ],
   },
   {
     id: "brain-drain",
-    title: "Brain Drain",
-    subtitle: "Tech Corridors · 2020",
+    title: "A Nation Built Offshore",
+    subtitle: "Indian & Chinese · Silicon Valley · 1990–2020",
     tab: "diaspora",
-    diasporaIds: ["indian", "chinese"],
-    yearIdx: 3,
-    flyTo: { lat: 37, lng: -97, altitude: 2.0 },
-    narrative: "Silicon Valley's majority-immigrant workforce traces back to two migration systems. Indian engineers and Chinese researchers transformed American technology — and are now building parallel ecosystems at home.",
+    category: "reverse",
+    beats: [
+      {
+        text: "2000. The H-1B program is a decade old. South Asia is systematically emptying its engineering class.",
+        selectedIds: ["indian"],
+        yearIdx: 1,
+        direction: "outbound",
+        flyTo: { lat: 20, lng: 78, altitude: 2.0 },
+      },
+      {
+        text: "By 2010, Indians run 16% of Silicon Valley startups. An economy formed inside another economy.",
+        selectedIds: ["indian"],
+        yearIdx: 2,
+        direction: "outbound",
+        flyTo: { lat: 37, lng: -122, altitude: 1.8 },
+      },
+      {
+        text: "China sends a parallel cohort. Different institutions. Same city. Same buildings.",
+        selectedIds: ["indian", "chinese"],
+        yearIdx: 2,
+        direction: "outbound",
+        flyTo: { lat: 37, lng: -97, altitude: 2.2 },
+      },
+      {
+        text: "2020: Beijing builds R&D campuses. Bangalore builds R&D campuses. The corridor bifurcates.",
+        selectedIds: ["indian", "chinese"],
+        yearIdx: 3,
+        direction: "inbound",
+        flyTo: { lat: 30, lng: 100, altitude: 2.2 },
+      },
+    ],
   },
   {
     id: "irish-exodus",
-    title: "The Irish Exodus",
-    subtitle: "A nation scattered across the Atlantic",
+    title: "The Colony That Kept Exporting",
+    subtitle: "Irish Diaspora · Atlantic · 1990–2020",
     tab: "diaspora",
-    diasporaIds: ["irish"],
-    yearIdx: 0,
-    flyTo: { lat: 53, lng: -8, altitude: 2.2 },
-    narrative: "Famine, colonial extraction, and economic collapse sent 80M people of Irish descent across the world — 16× Ireland's population. The arc to Boston is the most consequential corridor in Atlantic migration history.",
+    category: "collapse",
+    beats: [
+      {
+        text: "Ireland. Population: 4.5 million.",
+        selectedIds: ["irish"],
+        yearIdx: 0,
+        direction: "outbound",
+        flyTo: { lat: 53, lng: -8, altitude: 2.0 },
+      },
+      {
+        text: "Diaspora: 80 million. The Famine killed 1 million and sent 6 million more in a decade.",
+        selectedIds: ["irish"],
+        yearIdx: 0,
+        direction: "outbound",
+        flyTo: { lat: 40, lng: -35, altitude: 2.5 },
+      },
+      {
+        text: "Boston elected an Irish-American mayor for 60 consecutive years. More Irish speakers live in New York than in Ireland.",
+        selectedIds: ["irish"],
+        yearIdx: 1,
+        direction: "outbound",
+        flyTo: { lat: 42, lng: -71, altitude: 1.8 },
+      },
+      {
+        text: "The corridor is older than the republic. It never closed.",
+        selectedIds: ["irish"],
+        yearIdx: 3,
+        direction: "outbound",
+        flyTo: { lat: 47, lng: -30, altitude: 2.8 },
+      },
+    ],
   },
   {
     id: "atlantic-diaspora",
-    title: "Atlantic Diaspora",
-    subtitle: "Africa's forced dispersal",
+    title: "Routes Older Than Borders",
+    subtitle: "African Diaspora · Atlantic · 1500–present",
     tab: "diaspora",
-    diasporaIds: ["african"],
-    yearIdx: 3,
-    flyTo: { lat: 0, lng: -28, altitude: 2.5 },
-    narrative: "The transatlantic slave trade moved 12M Africans across the ocean between 1500–1900. Their descendants built the economies of the Americas. Brazil holds the world's second-largest African-descent population after Nigeria.",
+    category: "collapse",
+    beats: [
+      {
+        text: "1500 to 1900. 12 million people forced across this ocean.",
+        selectedIds: ["african"],
+        yearIdx: 0,
+        direction: "outbound",
+        flyTo: { lat: 0, lng: -28, altitude: 2.8 },
+      },
+      {
+        text: "The routes mapped profit, not people. Plantations required a specific kind of labor at scale.",
+        selectedIds: ["african"],
+        yearIdx: 0,
+        direction: "outbound",
+        flyTo: { lat: 5, lng: -10, altitude: 2.2 },
+      },
+      {
+        text: "Brazil received 40% of all enslaved Africans. Its African-descent population now exceeds Nigeria's.",
+        selectedIds: ["african"],
+        yearIdx: 3,
+        direction: "outbound",
+        flyTo: { lat: -10, lng: -52, altitude: 1.8 },
+      },
+      {
+        text: "The ships stopped. The geography remained.",
+        selectedIds: ["african"],
+        yearIdx: 3,
+        direction: "outbound",
+        flyTo: { lat: -5, lng: -25, altitude: 3.0 },
+      },
+    ],
   },
   {
     id: "stateless-crisis",
-    title: "Stateless Crisis",
-    subtitle: "12M people without legal identity",
+    title: "The Geography of Absence",
+    subtitle: "12 million people · no legal identity",
     tab: "stateless",
-    narrative: "Statelessness is a bureaucratic condition, not a geographic one. These 12 million people exist inside countries but outside law — unable to vote, own property, cross borders, or access healthcare. Most were born this way.",
+    category: "stateless",
+    beats: [
+      {
+        text: "12 million people. Inside countries. Outside law.",
+        flyTo: { lat: 20, lng: 40, altitude: 2.5 },
+      },
+      {
+        text: "Myanmar stripped citizenship from the Rohingya in 1982. A law, not a war. 800,000 remain.",
+        selectedIds: ["rohingya"],
+        isolate: true,
+        flyTo: { lat: 17, lng: 96, altitude: 1.8 },
+      },
+      {
+        text: "The Bidoon missed a registration window in 1971. Their grandchildren are still stateless in the Gulf.",
+        selectedIds: ["bidoon"],
+        isolate: true,
+        flyTo: { lat: 26, lng: 47, altitude: 1.8 },
+      },
+      {
+        text: "Statelessness requires no border crossing. Only a wrong box on a form, at the wrong moment.",
+        isolate: false,
+        flyTo: { lat: 20, lng: 40, altitude: 2.5 },
+      },
+    ],
   },
   {
     id: "empire-languages",
-    title: "Empire Languages",
-    subtitle: "Colonial linguistic legacy",
+    title: "Inheritance Networks",
+    subtitle: "Five colonial languages · six continents",
     tab: "languages",
-    langIds: ["english", "french", "spanish", "portuguese", "arabic"],
-    narrative: "Five languages spread by conquest now span every inhabited continent. English, French, Spanish, Portuguese, and Arabic together cover over 60% of the world's surface — long after the empires that spread them dissolved.",
+    category: "empire",
+    beats: [
+      {
+        text: "English. 1.4 billion speakers. 59 countries. One empire that insisted it wasn't one.",
+        selectedIds: ["english"],
+        flyTo: { lat: 20, lng: 0, altitude: 2.5 },
+      },
+      {
+        text: "France built a different kind of empire — and a different kind of language policy. Both stuck.",
+        selectedIds: ["english", "french"],
+        flyTo: { lat: 15, lng: 10, altitude: 2.8 },
+      },
+      {
+        text: "The Iberian kingdoms divided a hemisphere in 1494. The language boundary they drew has not moved.",
+        selectedIds: ["english", "french", "spanish", "portuguese"],
+        flyTo: { lat: -10, lng: -55, altitude: 2.2 },
+      },
+      {
+        text: "Arabic preceded European colonialism by centuries. Religion was the vector, not armies — a different pattern with the same result.",
+        selectedIds: ["english", "french", "spanish", "portuguese", "arabic"],
+        flyTo: { lat: 20, lng: 30, altitude: 2.0 },
+      },
+      {
+        text: "Together: 60% of the world's surface. The empires dissolved. These didn't.",
+        selectedIds: ["english", "french", "spanish", "portuguese", "arabic"],
+        flyTo: { lat: 20, lng: 15, altitude: 3.2 },
+      },
+    ],
   },
 ];
+
+const CATEGORY_LABEL: Record<StoryCategory, string> = {
+  corridor: "Corridor",
+  collapse: "Collapse",
+  empire: "Empire",
+  stateless: "Stateless",
+  reverse: "Reverse Flow",
+};
 
 const loadPins = (): Pin[] => {
   try { return JSON.parse(localStorage.getItem(PIN_KEY) ?? "[]"); }
@@ -137,9 +301,12 @@ const App: React.FC = () => {
   const [pinsOpen, setPinsOpen] = useState(false);
   const [storiesOpen, setStoriesOpen] = useState(false);
   const [activeStory, setActiveStory] = useState<Story | null>(null);
+  const [beatIdx, setBeatIdx] = useState(0);
   const [storyKey, setStoryKey] = useState("default");
   const [showIntro, setShowIntro] = useState(shouldShowIntro);
   const globeRef = useRef<GlobeHandle>(null);
+
+  const currentBeat: StoryBeat | undefined = activeStory?.beats[beatIdx];
 
   const handleTabChange = useCallback((tab: TabId) => {
     setActiveTab(tab);
@@ -147,6 +314,7 @@ const App: React.FC = () => {
     setGlobeState(EMPTY_STATE);
     setDrawerOpen(false);
     setActiveStory(null);
+    setBeatIdx(0);
     setStoryKey("default");
   }, []);
 
@@ -161,14 +329,35 @@ const App: React.FC = () => {
   const loadStory = useCallback((story: Story) => {
     setActiveTab(story.tab);
     setActiveStory(story);
+    setBeatIdx(0);
     setStoryKey(story.id);
     setGlobeState(EMPTY_STATE);
     setClickedCountry(null);
     setStoriesOpen(false);
-    if (story.flyTo) setTimeout(() => globeRef.current?.flyTo(story.flyTo!), 300);
+    const firstBeat = story.beats[0];
+    if (firstBeat?.flyTo) setTimeout(() => globeRef.current?.flyTo(firstBeat.flyTo!), 300);
   }, []);
 
-  const dismissStory = useCallback(() => setActiveStory(null), []);
+  // Fly to new beat target when beat advances
+  useEffect(() => {
+    if (!activeStory || !currentBeat?.flyTo) return;
+    globeRef.current?.flyTo(currentBeat.flyTo);
+  }, [activeStory, beatIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const advanceBeat = useCallback(() => {
+    if (!activeStory) return;
+    setBeatIdx((prev) => Math.min(prev + 1, activeStory.beats.length - 1));
+  }, [activeStory]);
+
+  const retreatBeat = useCallback(() => {
+    setBeatIdx((prev) => Math.max(prev - 1, 0));
+  }, []);
+
+  const dismissStory = useCallback(() => {
+    setActiveStory(null);
+    setBeatIdx(0);
+    setStoryKey("default");
+  }, []);
 
   const pinCurrent = () => {
     const label = prompt(
@@ -214,11 +403,28 @@ const App: React.FC = () => {
     return () => document.removeEventListener("click", handler);
   }, [pinsOpen, storiesOpen]);
 
-  const diasporaStoryConfig = activeStory?.tab === "diaspora"
-    ? { selectedIds: activeStory.diasporaIds, yearIdx: activeStory.yearIdx }
+  // configKey changes per beat so sidebars' useEffect can respond
+  const configKey = activeStory ? `${activeStory.id}:${beatIdx}` : undefined;
+
+  const diasporaStoryConfig = activeStory?.tab === "diaspora" && currentBeat
+    ? {
+        selectedIds: currentBeat.selectedIds,
+        yearIdx: currentBeat.yearIdx,
+        direction: currentBeat.direction,
+        configKey,
+      }
     : undefined;
-  const langStoryConfig = activeStory?.tab === "languages"
-    ? { selectedIds: activeStory.langIds }
+
+  const langStoryConfig = activeStory?.tab === "languages" && currentBeat
+    ? { selectedIds: currentBeat.selectedIds, configKey }
+    : undefined;
+
+  const statelessStoryConfig = activeStory?.tab === "stateless" && currentBeat
+    ? {
+        selectedIds: currentBeat.selectedIds,
+        isolate: currentBeat.isolate,
+        configKey,
+      }
     : undefined;
 
   return (
@@ -260,7 +466,7 @@ const App: React.FC = () => {
               <div className="pins-dropdown stories-dropdown">
                 <div className="pins-dropdown-title">Guided Stories</div>
                 {STORIES.map((s) => (
-                  <div key={s.id} className="pin-item" onClick={() => loadStory(s)}>
+                  <div key={s.id} className="pin-item story-pin-item" onClick={() => loadStory(s)}>
                     <span className="pin-tab-icon">
                       {s.tab === "languages" ? <GlobeIcon /> : s.tab === "diaspora" ? <DiasporaIcon /> : <StatelessIcon />}
                     </span>
@@ -268,6 +474,7 @@ const App: React.FC = () => {
                       <span className="pin-label">{s.title}</span>
                       <span className="story-item-sub">{s.subtitle}</span>
                     </div>
+                    <span className={`story-cat-badge cat-${s.category}`}>{CATEGORY_LABEL[s.category]}</span>
                   </div>
                 ))}
               </div>
@@ -332,7 +539,12 @@ const App: React.FC = () => {
             />
           )}
           {activeTab === "stateless" && (
-            <StatelessSidebar onStateChange={setGlobeState} onFlyTo={handleFlyTo} />
+            <StatelessSidebar
+              key={storyKey}
+              storyConfig={statelessStoryConfig}
+              onStateChange={setGlobeState}
+              onFlyTo={handleFlyTo}
+            />
           )}
         </aside>
 
@@ -346,16 +558,59 @@ const App: React.FC = () => {
             onCountryClick={handleCountryClick}
           />
 
-          {activeStory && (
-            <div className="story-card">
+          {activeStory && currentBeat && (
+            <div className="story-card" role="region" aria-label="Story narration">
               <div className="story-card-header">
-                <div>
+                <div className="story-card-meta">
+                  <span className={`story-cat-badge cat-${activeStory.category}`}>
+                    {CATEGORY_LABEL[activeStory.category]}
+                  </span>
                   <div className="story-card-title">{activeStory.title}</div>
                   <div className="story-card-subtitle">{activeStory.subtitle}</div>
                 </div>
-                <button className="story-card-close" onClick={dismissStory}>✕</button>
+                <button className="story-card-close" onClick={dismissStory} aria-label="Close story">✕</button>
               </div>
-              <p className="story-card-text">{activeStory.narrative}</p>
+
+              <p className="story-card-text" key={`${activeStory.id}:${beatIdx}`}>
+                {currentBeat.text}
+              </p>
+
+              <div className="story-beat-nav">
+                <button
+                  className="beat-prev"
+                  onClick={retreatBeat}
+                  disabled={beatIdx === 0}
+                  aria-label="Previous beat"
+                >
+                  ←
+                </button>
+
+                <div className="beat-dots" role="tablist" aria-label="Story beats">
+                  {activeStory.beats.map((_, i) => (
+                    <button
+                      key={i}
+                      className={`beat-dot ${i === beatIdx ? "beat-dot-active" : i < beatIdx ? "beat-dot-past" : ""}`}
+                      onClick={() => setBeatIdx(i)}
+                      role="tab"
+                      aria-selected={i === beatIdx}
+                      aria-label={`Beat ${i + 1} of ${activeStory.beats.length}`}
+                    />
+                  ))}
+                </div>
+
+                <button
+                  className="beat-next"
+                  onClick={advanceBeat}
+                  disabled={beatIdx === activeStory.beats.length - 1}
+                  aria-label="Next beat"
+                >
+                  →
+                </button>
+              </div>
+
+              <div className="beat-counter">
+                {beatIdx + 1} / {activeStory.beats.length}
+              </div>
             </div>
           )}
 

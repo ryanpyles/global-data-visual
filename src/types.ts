@@ -31,6 +31,15 @@ export interface FlyTarget {
   altitude?: number;
 }
 
+export interface StoryBeat {
+  text: string;
+  flyTo?: FlyTarget;
+  selectedIds?: string[];
+  yearIdx?: number;
+  direction?: "outbound" | "inbound";
+  isolate?: boolean; // stateless: dim non-selected groups
+}
+
 export interface GlobeState {
   highlights: CountryHighlight[];
   arcs: ArcData[];

@@ -26,9 +26,16 @@ function useCountUp(target: number, duration = 700): number {
   return display;
 }
 
+interface StoryConfig {
+  selectedIds?: string[];
+  isolate?: boolean;
+  configKey?: string;
+}
+
 interface Props {
   onStateChange: (s: GlobeState) => void;
   onFlyTo: (t: FlyTarget) => void;
+  storyConfig?: StoryConfig;
 }
 
 const fmt = (n: number) =>
@@ -39,12 +46,20 @@ const ALL_IDS = new Set(statelessGroups.map((g) => g.id));
 
 type SortKey = "population" | "name" | "since";
 
-const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo }) => {
+const StatelessSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig }) => {
   const [selected, setSelected] = useState<Set<string>>(ALL_IDS);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [isolate, setIsolate] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("population");
+
+  // Respond to beat-by-beat story config changes
+  useEffect(() => {
+    if (!storyConfig?.configKey) return;
+    if (storyConfig.selectedIds) setSelected(new Set(storyConfig.selectedIds));
+    else setSelected(ALL_IDS);
+    if (storyConfig.isolate !== undefined) setIsolate(storyConfig.isolate);
+  }, [storyConfig?.configKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = useMemo(() => {
     const base = statelessGroups.filter(

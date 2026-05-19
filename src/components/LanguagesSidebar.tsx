@@ -47,6 +47,39 @@ const PRESETS: Preset[] = [
   },
 ];
 
+// Globe base color — must match GlobeViz dark material
+const BASE_RGB = [6, 14, 28] as const;
+
+// Scale fill brightness by country population so India ≠ Greenland
+const popWeight = (iso: string): number => {
+  const pop = populations[iso] ?? 0.05; // millions
+  // Power curve: 1400M → 1.0, 67M → 0.62, 5M → 0.37, 0.05M → 0.14
+  return Math.max(0.14, Math.min(1.0, Math.pow(pop / 1400, 0.26)));
+};
+
+// Lerp language color toward dark globe base by (1 - weight)
+const lerpToBase = (hex: string, t: number): string => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const tr = Math.round(r * t + BASE_RGB[0] * (1 - t));
+  const tg = Math.round(g * t + BASE_RGB[1] * (1 - t));
+  const tb = Math.round(b * t + BASE_RGB[2] * (1 - t));
+  return `#${tr.toString(16).padStart(2, "0")}${tg.toString(16).padStart(2, "0")}${tb.toString(16).padStart(2, "0")}`;
+};
+
+// Screen blend for overlap zones — Belgium glows mixed, not white-washed
+const screenBlend = (hexColors: string[], weight: number): string => {
+  let sr = 1, sg = 1, sb = 1;
+  hexColors.forEach((hex) => {
+    sr *= 1 - parseInt(hex.slice(1, 3), 16) / 255;
+    sg *= 1 - parseInt(hex.slice(3, 5), 16) / 255;
+    sb *= 1 - parseInt(hex.slice(5, 7), 16) / 255;
+  });
+  const blended = `#${Math.round((1 - sr) * 255).toString(16).padStart(2, "0")}${Math.round((1 - sg) * 255).toString(16).padStart(2, "0")}${Math.round((1 - sb) * 255).toString(16).padStart(2, "0")}`;
+  return lerpToBase(blended, Math.min(1.0, weight * 1.35));
+};
+
 const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig }) => {
   const [selected, setSelected] = useState<Set<string>>(
     storyConfig?.selectedIds ? new Set(storyConfig.selectedIds) : ALL_IDS
@@ -76,18 +109,28 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
     if (hovered) {
       const hovLang = languageGroups.find((l) => l.id === hovered);
       const hovIsos = new Set(hovLang?.countries ?? []);
-      return Array.from(isoLangs.entries()).map(([iso, langs]) => ({
-        iso,
-        color: hovIsos.has(iso) ? (langs.length >= 2 ? "#f5f0ff" : langs[0].color) : "#192033",
-        label: langs.map((l) => l.name).join(" · "),
-      }));
+      return Array.from(isoLangs.entries()).map(([iso, langs]) => {
+        const w = popWeight(iso);
+        return {
+          iso,
+          color: hovIsos.has(iso)
+            ? (langs.length >= 2 ? screenBlend(langs.map((l) => l.color), w) : lerpToBase(langs[0].color, w))
+            : "#080f1c",
+          label: langs.map((l) => l.name).join(" · "),
+        };
+      });
     }
 
-    return Array.from(isoLangs.entries()).map(([iso, langs]) => ({
-      iso,
-      color: langs.length >= 2 ? "#f0eeff" : langs[0].color,
-      label: langs.map((l) => l.name).join(" · "),
-    }));
+    return Array.from(isoLangs.entries()).map(([iso, langs]) => {
+      const w = popWeight(iso);
+      return {
+        iso,
+        color: langs.length >= 2
+          ? screenBlend(langs.map((l) => l.color), w)
+          : lerpToBase(langs[0].color, w),
+        label: langs.map((l) => l.name).join(" · "),
+      };
+    });
   }, [selected, hovered]);
 
   // Coverage: unique countries covered by selected languages → sum populations

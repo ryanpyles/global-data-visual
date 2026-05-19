@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from "react";
 import Globe, { GlobeInstance } from "globe.gl";
-import { Vector2, BufferGeometry, BufferAttribute, PointsMaterial, Points, Color } from "three";
+import { Vector2, BufferGeometry, BufferAttribute, PointsMaterial, Points, Color, MeshPhongMaterial } from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
@@ -65,15 +65,15 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
     const applyPolygons = (globe: any, polygons: any[]) => {
       globe
         .polygonsData(polygons)
-        .polygonAltitude((d: any) => (d.properties.highlightColor ? 0.018 : 0.002))
+        .polygonAltitude((d: any) => (d.properties.highlightColor ? 0.016 : 0.001))
         .polygonCapColor((d: any) =>
-          d.properties.highlightColor ? d.properties.highlightColor + "cc" : "#0d1f35"
+          d.properties.highlightColor ? d.properties.highlightColor : "#070f1c"
         )
         .polygonSideColor((d: any) =>
-          d.properties.highlightColor ? d.properties.highlightColor + "99" : "rgba(0,0,0,0)"
+          d.properties.highlightColor ? d.properties.highlightColor + "55" : "rgba(0,0,0,0)"
         )
         .polygonStrokeColor((d: any) =>
-          d.properties.highlightColor ? d.properties.highlightColor : "#1a3a5c"
+          d.properties.highlightColor ? d.properties.highlightColor + "88" : "rgba(10,20,38,0.5)"
         )
         .polygonLabel(tooltipHtml)
         .onPolygonClick((d: any) => {
@@ -94,10 +94,16 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
       const h = containerRef.current.clientHeight;
 
       globe
-        .globeImageUrl("/earth-blue-marble.jpg")
+        .globeImageUrl("")
+        .globeMaterial(new MeshPhongMaterial({
+          color: new Color(0x06101e),
+          emissive: new Color(0x010609),
+          shininess: 5,
+          specular: new Color(0x0d2a50),
+        }))
         .showAtmosphere(true)
-        .atmosphereColor("#1a5a9a")
-        .atmosphereAltitude(0.16)
+        .atmosphereColor("#1d6bb5")
+        .atmosphereAltitude(0.24)
         .width(w)
         .height(h);
 

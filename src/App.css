@@ -670,24 +670,100 @@ body {
 .panel-stateless-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-top: 2px; }
 .panel-empty { color: var(--text-dim); font-size: 12px; font-style: italic; }
 
-/* ── Mobile ── */
-@media (max-width: 700px) {
-  .tab-label { display: none; }
-  .tab-btn { padding: 6px 10px; }
-  .drawer-toggle { display: flex; align-items: center; justify-content: center; }
-  .app-header h1 { display: none; }
+/* ── Responsive ── */
 
+/* Tablet: sidebar narrows, tagline hides */
+@media (max-width: 900px) {
+  :root { --sidebar-w: 268px; }
+  .header-tagline { display: none; }
+  .tab-btn:hover .tab-label, .tab-active .tab-label { max-width: 60px; }
+}
+
+/* Sidebar backdrop — only rendered on mobile via JS, styled here */
+.sidebar-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 25;
+  animation: fade-in 0.18s ease;
+}
+
+/* Mobile: ≤ 700px — bottom-sheet sidebar, compact header */
+@media (max-width: 700px) {
+  :root { --sidebar-w: 100%; }
+
+  /* Activate backdrop */
+  .sidebar-backdrop { display: block; }
+
+  /* Header: compress */
+  .app-header { padding: 0 10px; gap: 6px; }
+  .app-header h1 { font-size: 11px; letter-spacing: 0; }
+  .header-tagline { display: none; }
+  .tab-label { display: none !important; }
+  .tab-btn { padding: 7px 9px; gap: 0 !important; }
+  .tab-nav { gap: 1px; }
+  .btn-text { display: none; }            /* Stories → ▶   Pin → 📌 */
+  .pin-btn { padding: 6px 8px; font-size: 13px; min-width: 32px; text-align: center; }
+  .pin-list-btn { min-width: 28px; }
+  .drawer-toggle { display: flex; align-items: center; justify-content: center; }
+  .pins-dropdown { right: 0; left: auto; width: min(280px, 90vw); }
+  .stories-dropdown { width: min(300px, 94vw); }
+
+  /* Sidebar → bottom sheet */
   .sidebar {
-    width: 100%; max-height: 62vh;
-    border-right: none; border-bottom: 1px solid var(--glass-border);
-    transform: translateY(-100%);
-    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    position: fixed;          /* fixed so it floats above everything */
+    top: auto;
+    bottom: 0; left: 0; right: 0;
+    width: 100%;
+    max-height: 72vh;
+    border-right: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px 18px 0 0;
+    transform: translateY(100%);          /* hidden below screen */
+    transition: transform 0.30s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 30;
+    padding-top: 22px;                    /* room for handle */
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+  }
+  /* Drag handle */
+  .sidebar::before {
+    content: '';
+    position: absolute; top: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 40px; height: 4px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 2px;
   }
   .sidebar-open { transform: translateY(0); }
 
-  .country-panel { bottom: 10px; right: 10px; left: 10px; width: auto; }
-  .story-card { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+  /* Story card: full-width strip at bottom */
+  .story-card {
+    left: 10px; right: 10px;
+    bottom: 10px;
+    max-width: none;
+    padding: 13px 14px;
+  }
+  .story-card-title { font-size: 13px; }
+  .story-card-text { font-size: 12px; }
+  .beat-prev, .beat-next { width: 32px; height: 32px; font-size: 13px; }
+
+  /* Country panel: full-width */
+  .country-panel { bottom: 10px; right: 10px; left: 10px; width: auto; max-width: none; }
+
+  /* Sidebar internals: touch-friendlier */
+  .legend-item { min-height: 40px; padding: 8px 10px; }
+  .legend-name { font-size: 13px; }
+  .stateless-item-row { padding: 8px 10px; }
+  .family-toggle { padding: 8px 8px; }
+  .seg-btn { padding: 7px 8px; font-size: 11px; }
+  .preset-btn { padding: 5px 10px; }
+
+  /* Intro overlay: compact on mobile */
+  .intro-count-num { font-size: 38px; }
+  .intro-tagline { font-size: 14px; }
+  .intro-content { padding: 32px 20px; gap: 14px; }
 }
 
 /* ── Story card ── */

@@ -460,7 +460,7 @@ const App: React.FC = () => {
               onClick={() => setStoriesOpen((o) => !o)}
               title="Guided stories"
             >
-              ▶ Stories
+              ▶<span className="btn-text"> Stories</span>
             </button>
             {storiesOpen && (
               <div className="pins-dropdown stories-dropdown">
@@ -483,7 +483,7 @@ const App: React.FC = () => {
 
           <div className="pins-wrap" onClick={(e) => e.stopPropagation()}>
             <button className="pin-btn" onClick={pinCurrent} title="Pin current view">
-              📌 Pin
+              📌<span className="btn-text"> Pin</span>
             </button>
             {pins.length > 0 && (
               <button
@@ -521,6 +521,9 @@ const App: React.FC = () => {
       </header>
 
       <main className="app-main">
+        {drawerOpen && (
+          <div className="sidebar-backdrop" onClick={() => setDrawerOpen(false)} aria-hidden />
+        )}
         <aside className={`sidebar ${drawerOpen ? "sidebar-open" : ""}`}>
           {activeTab === "languages" && (
             <LanguagesSidebar

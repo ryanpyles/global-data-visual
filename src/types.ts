@@ -4,6 +4,7 @@ export interface CountryHighlight {
   iso: string;
   color: string;
   label?: string;
+  contested?: boolean; // linguistically contested / overlapping — rendered with distinct stroke
 }
 
 export interface ArcData {
@@ -15,6 +16,7 @@ export interface ArcData {
   label: string;
   stroke: number; // line thickness proportional to population
   altitude?: number; // arc height — larger = higher arc = visually heavier route
+  animateTime?: number; // override dash animation ms (influence arcs use slow 14000+)
 }
 
 export interface RingData {

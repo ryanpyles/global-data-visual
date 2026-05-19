@@ -40,6 +40,7 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
     const [loaded, setLoaded] = useState(false);
     const bloomPassRef = useRef<UnrealBloomPass | null>(null);
     const composerRef = useRef<EffectComposer | null>(null);
+    const modeRef = useRef<TabId>(mode);
 
     useImperativeHandle(ref, () => ({
       flyTo({ lat, lng, altitude = 1.8 }: FlyTarget) {
@@ -57,6 +58,7 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
             ...feat.properties,
             iso2,
             highlightColor: match?.color ?? null,
+            contested: match?.contested ?? false,
             label: match?.label || feat.properties?.name || iso2,
           },
         };
@@ -65,16 +67,23 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
     const applyPolygons = (globe: any, polygons: any[]) => {
       globe
         .polygonsData(polygons)
-        .polygonAltitude((d: any) => (d.properties.highlightColor ? 0.016 : 0.001))
+        .polygonAltitude((d: any) => {
+          if (!d.properties.highlightColor) return 0.001;
+          // Contested/overlapping countries sit lower — creates visual depth hierarchy
+          return d.properties.contested ? 0.009 : 0.016;
+        })
         .polygonCapColor((d: any) =>
           d.properties.highlightColor ? d.properties.highlightColor : "#070f1c"
         )
         .polygonSideColor((d: any) =>
-          d.properties.highlightColor ? d.properties.highlightColor + "55" : "rgba(0,0,0,0)"
+          d.properties.highlightColor ? d.properties.highlightColor + "40" : "rgba(0,0,0,0)"
         )
-        .polygonStrokeColor((d: any) =>
-          d.properties.highlightColor ? d.properties.highlightColor + "88" : "rgba(10,20,38,0.5)"
-        )
+        .polygonStrokeColor((d: any) => {
+          if (!d.properties.highlightColor) return "rgba(10,20,38,0.5)";
+          // Contested zones get a bright fractured stroke — visually communicates instability
+          if (d.properties.contested) return "rgba(255,255,255,0.55)";
+          return d.properties.highlightColor + "88";
+        })
         .polygonLabel(tooltipHtml)
         .onPolygonClick((d: any) => {
           const iso2 = d.properties?.iso2 ?? "";
@@ -123,6 +132,19 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
       el.addEventListener("mouseleave", resume);
       el.addEventListener("touchstart", pause, { passive: true });
       el.addEventListener("touchend", resume, { passive: true });
+
+      // Scale bloom with altitude: globe glows more from far (cosmic), less when close (detailed)
+      const onCameraChange = () => {
+        if (!bloomPassRef.current) return;
+        const pov = (globeRef.current as any)?.pointOfView?.();
+        if (!pov) return;
+        const alt = Math.max(0.5, pov.altitude ?? 2.0);
+        const cfg = MODE_CONFIG[modeRef.current];
+        // Far zoom: bloom up to 1.7× base; close zoom: bloom down to 0.55×
+        const scale = 0.55 + Math.min(1.15, (alt - 0.5) * 0.42);
+        bloomPassRef.current.strength = cfg.bloom * scale;
+      };
+      controls.addEventListener("change", onCameraChange);
 
       // Bloom — restrained: high threshold, low strength, small radius
       // This means only selected-region edges glow; oceans/unselected land stay dark
@@ -188,7 +210,9 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
         .arcDashLength(0.38)
         .arcDashGap(0.12)
         .arcDashAnimateTime((d: any) => {
-          // Faster major routes feel more urgent; tiny routes feel fragile
+          // Explicit animateTime (e.g. slow influence arcs) takes priority
+          if (d.animateTime) return d.animateTime;
+          // Faster major routes feel urgent; thin routes feel fragile
           const base = d.stroke ?? 0.5;
           return Math.max(1000, Math.round(2800 - base * 600));
         })
@@ -230,9 +254,13 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
         el.removeEventListener("mouseleave", resume);
         el.removeEventListener("touchstart", pause);
         el.removeEventListener("touchend", resume);
+        controls.removeEventListener("change", onCameraChange);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Keep modeRef in sync for use inside camera listener
+    useEffect(() => { modeRef.current = mode; }, [mode]);
 
     // Adjust bloom + ring speed when mode changes
     useEffect(() => {

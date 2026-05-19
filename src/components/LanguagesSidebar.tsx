@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { languageGroups, languageFamilies, LanguageGroup } from "../data/languages";
 import { populations, WORLD_POP } from "../data/countryPopulations";
 import { centroids } from "../data/countryCentroids";
-import { CountryHighlight, GlobeState, FlyTarget } from "../types";
+import { CountryHighlight, ArcData, GlobeState, FlyTarget } from "../types";
 
 interface StoryConfig {
   selectedIds?: string[];
@@ -39,11 +39,9 @@ const PRESETS: Preset[] = [
     ids: ["mandarin", "english", "hindi", "spanish", "arabic"],
   },
   {
-    label: "Indo-European",
-    title: "Indo-European family: Germanic, Romance, Slavic, Indo-Iranian",
-    ids: languageGroups.filter((l) =>
-      ["Germanic","Romance","Slavic","Indo-Iranian"].includes(l.family)
-    ).map((l) => l.id),
+    label: "Colonial",
+    title: "Languages spread by empire: English, French, Spanish, Portuguese, Russian — shows influence arcs from origin cities",
+    ids: ["english", "french", "spanish", "portuguese", "russian"],
   },
 ];
 
@@ -95,6 +93,10 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set());
   const [hovered, setHovered] = useState<string | null>(null);
 
+  // Whether a country is "primary" for a given language (dominant/official)
+  const isPrimary = (lang: LanguageGroup, iso: string): boolean =>
+    !lang.primaryCountries || lang.primaryCountries.includes(iso);
+
   const highlights = useMemo<CountryHighlight[]>(() => {
     // Build iso → [matching selected languages]
     const isoLangs = new Map<string, LanguageGroup[]>();
@@ -110,28 +112,59 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
       const hovLang = languageGroups.find((l) => l.id === hovered);
       const hovIsos = new Set(hovLang?.countries ?? []);
       return Array.from(isoLangs.entries()).map(([iso, langs]) => {
-        const w = popWeight(iso);
+        const primaryLangs = langs.filter((l) => isPrimary(l, iso));
+        const w = primaryLangs.length > 0 ? popWeight(iso) : popWeight(iso) * 0.22;
         return {
           iso,
           color: hovIsos.has(iso)
             ? (langs.length >= 2 ? screenBlend(langs.map((l) => l.color), w) : lerpToBase(langs[0].color, w))
-            : "#080f1c",
+            : "#070d1a",
           label: langs.map((l) => l.name).join(" · "),
+          contested: langs.length >= 2,
         };
       });
     }
 
     return Array.from(isoLangs.entries()).map(([iso, langs]) => {
-      const w = popWeight(iso);
+      // Countries where all covering languages list this as secondary → dim influence overlay
+      const primaryLangs = langs.filter((l) => isPrimary(l, iso));
+      const w = primaryLangs.length > 0 ? popWeight(iso) : popWeight(iso) * 0.22;
       return {
         iso,
         color: langs.length >= 2
           ? screenBlend(langs.map((l) => l.color), w)
           : lerpToBase(langs[0].color, w),
         label: langs.map((l) => l.name).join(" · "),
+        contested: langs.length >= 2,
       };
     });
-  }, [selected, hovered]);
+  }, [selected, hovered]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Influence arcs: faint ghost-of-empire flows from origin to secondary countries
+  // Only languages with both primaryCountries and origin defined emit these
+  const influenceArcs = useMemo<ArcData[]>(() => {
+    const arcs: ArcData[] = [];
+    languageGroups.forEach((lang) => {
+      if (!selected.has(lang.id) || !lang.origin || !lang.primaryCountries) return;
+      const [oLat, oLng] = lang.origin;
+      const secondary = lang.countries.filter(
+        (iso) => !lang.primaryCountries!.includes(iso) && centroids[iso]
+      );
+      secondary.forEach((iso) => {
+        const [dLat, dLng] = centroids[iso];
+        arcs.push({
+          startLat: oLat, startLng: oLng,
+          endLat: dLat, endLng: dLng,
+          color: [lang.color + "30", lang.color + "06"],
+          label: `${lang.name} influence`,
+          stroke: 0.18,
+          altitude: 0.06,
+          animateTime: 16000,
+        });
+      });
+    });
+    return arcs;
+  }, [selected]);
 
   // Coverage: unique countries covered by selected languages → sum populations
   const coverage = useMemo(() => {
@@ -152,8 +185,8 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
   }, [selected, speakerMode]);
 
   useEffect(() => {
-    onStateChange({ highlights, arcs: [], rings: [] });
-  }, [highlights, onStateChange]);
+    onStateChange({ highlights, arcs: influenceArcs, rings: [] });
+  }, [highlights, influenceArcs, onStateChange]);
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -353,7 +386,7 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
       })}
 
       <p className="sidebar-note" style={{ marginTop: 4 }}>
-        Near-white countries overlap 2+ selected languages. Hover to isolate a region. M = millions of speakers.
+        Dim fills = colonial/secondary reach. Bright fills = dominant speaker regions. Overlap countries use screen-blend color mixing. Hover to isolate. M = millions.
       </p>
     </>
   );

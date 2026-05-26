@@ -43,16 +43,23 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig 
   const [search, setSearch] = useState("");
   const [direction, setDirection] = useState<ArcDir>(storyConfig?.direction ?? "outbound");
   const [yearIdx, setYearIdx] = useState<number>(storyConfig?.yearIdx ?? 3);
+  // sliderDisplay is visual-only; yearIdx drives data. Separating them prevents
+  // flooding globe.gl with arc recomputes while the slider is being dragged.
+  const [sliderDisplay, setSliderDisplay] = useState<number>(storyConfig?.yearIdx ?? 3);
 
   // Respond to beat-by-beat story config changes without full remount
   useEffect(() => {
     if (!storyConfig?.configKey) return;
     if (storyConfig.selectedIds) setSelectedIds(new Set(storyConfig.selectedIds));
-    if (storyConfig.yearIdx !== undefined) setYearIdx(storyConfig.yearIdx);
+    if (storyConfig.yearIdx !== undefined) {
+      setYearIdx(storyConfig.yearIdx);
+      setSliderDisplay(storyConfig.yearIdx);
+    }
     if (storyConfig.direction) setDirection(storyConfig.direction);
   }, [storyConfig?.configKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const year = YEARS[yearIdx];
+  const displayYear = YEARS[sliderDisplay];
 
   const toggleGroup = (id: string) =>
     setSelectedIds((prev) => {
@@ -182,7 +189,7 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig 
       <div className="time-slider-block">
         <div className="time-slider-header">
           <span className="time-slider-label">Year</span>
-          <span className="time-year-badge">{year}</span>
+          <span className="time-year-badge">{displayYear}</span>
         </div>
         <input
           className="time-slider"
@@ -190,28 +197,30 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig 
           min={0}
           max={3}
           step={1}
-          value={yearIdx}
-          onChange={(e) => setYearIdx(Number(e.target.value))}
-          aria-label={`Year: ${year}`}
+          value={sliderDisplay}
+          onChange={(e) => setSliderDisplay(Number(e.target.value))}
+          onMouseUp={(e) => setYearIdx(Number((e.target as HTMLInputElement).value))}
+          onTouchEnd={(e) => setYearIdx(Number((e.target as HTMLInputElement).value))}
+          aria-label={`Year: ${displayYear}`}
           aria-valuemin={0}
           aria-valuemax={3}
-          aria-valuenow={yearIdx}
-          aria-valuetext={String(year)}
+          aria-valuenow={sliderDisplay}
+          aria-valuetext={String(displayYear)}
         />
         <div className="time-ticks">
           {YEARS.map((y, i) => (
             <button
               key={y}
-              className={`time-tick ${i === yearIdx ? "time-tick-active" : ""}`}
-              onClick={() => setYearIdx(i)}
+              className={`time-tick ${i === sliderDisplay ? "time-tick-active" : ""}`}
+              onClick={() => { setSliderDisplay(i); setYearIdx(i); }}
             >
               {y}
             </button>
           ))}
         </div>
-        {yearIdx < 3 && (
+        {sliderDisplay < 3 && (
           <p className="time-note">
-            Populations scaled to estimated {year} levels based on documented migration trends.
+            Scaled to estimated {displayYear} levels based on migration trends.
           </p>
         )}
       </div>

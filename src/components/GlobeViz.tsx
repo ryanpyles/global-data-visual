@@ -41,6 +41,7 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
     const bloomPassRef = useRef<UnrealBloomPass | null>(null);
     const composerRef = useRef<EffectComposer | null>(null);
     const modeRef = useRef<TabId>(mode);
+    const arcDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useImperativeHandle(ref, () => ({
       flyTo({ lat, lng, altitude = 1.8 }: FlyTarget) {
@@ -72,15 +73,19 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
           // Contested/overlapping countries sit lower — creates visual depth hierarchy
           return d.properties.contested ? 0.009 : 0.016;
         })
-        .polygonCapColor((d: any) =>
-          d.properties.highlightColor ? d.properties.highlightColor : "#070f1c"
-        )
+        .polygonCapColor((d: any) => {
+          if (d.properties.highlightColor) return d.properties.highlightColor;
+          // Languages: pitch-dark unlit so only selected languages glow
+          // Diaspora/Stateless: subtle land colour for geographic bearings
+          return modeRef.current === "languages" ? "#070f1c" : "#0e1c30";
+        })
         .polygonSideColor((d: any) =>
           d.properties.highlightColor ? d.properties.highlightColor + "40" : "rgba(0,0,0,0)"
         )
         .polygonStrokeColor((d: any) => {
-          if (!d.properties.highlightColor) return "rgba(10,20,38,0.5)";
-          // Contested zones get a bright fractured stroke — visually communicates instability
+          if (!d.properties.highlightColor) {
+            return modeRef.current === "languages" ? "rgba(10,20,38,0.4)" : "rgba(18,32,52,0.7)";
+          }
           if (d.properties.contested) return "rgba(255,255,255,0.55)";
           return d.properties.highlightColor + "88";
         })
@@ -207,8 +212,8 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
         .arcColor("color")
         .arcAltitude((d: any) => d.altitude ?? 0.35)
         .arcStroke("stroke")
-        .arcDashLength(0.38)
-        .arcDashGap(0.12)
+        .arcDashLength(0.65)
+        .arcDashGap(0.02)
         .arcDashAnimateTime((d: any) => {
           // Explicit animateTime (e.g. slow influence arcs) takes priority
           if (d.animateTime) return d.animateTime;
@@ -274,18 +279,21 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
       if (g) g.ringPropagationSpeed(cfg.ringSpeed).ringRepeatPeriod(cfg.ringPeriod);
     }, [mode]);
 
-    // Sync polygons
+    // Sync polygons — re-run on mode change so unlit colour updates
     useEffect(() => {
       const globe = globeRef.current as any;
       if (!globe || !loaded) return;
       const hlMap = new Map(highlights.map((h) => [h.iso, h]));
       applyPolygons(globe, buildPolygons(geoRef.current, hlMap));
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [highlights, loaded]);
+    }, [highlights, loaded, mode]);
 
-    // Sync arcs
+    // Sync arcs — debounced so rapid slider drags don't flood globe.gl
     useEffect(() => {
-      (globeRef.current as any)?.arcsData(arcs);
+      if (arcDebounceRef.current) clearTimeout(arcDebounceRef.current);
+      arcDebounceRef.current = setTimeout(() => {
+        (globeRef.current as any)?.arcsData(arcs);
+      }, 40);
     }, [arcs]);
 
     // Sync rings

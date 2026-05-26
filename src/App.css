@@ -461,6 +461,70 @@ body {
 }
 .fly-btn:hover { color: var(--accent); }
 
+/* ── Diaspora time slider ── */
+.time-slider-block {
+  display: flex; flex-direction: column; gap: 8px;
+  background: rgba(255,255,255,0.025);
+  border-radius: var(--radius); padding: 11px 13px;
+}
+.time-slider-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.time-slider-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.14em; color: var(--text-muted);
+}
+.time-year-badge {
+  font-size: 15px; font-weight: 800; color: var(--accent);
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.time-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 4px;
+  border-radius: 2px;
+  background: var(--surface3);
+  outline: none; cursor: pointer;
+  touch-action: none;
+}
+.time-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(56,189,248,0.18);
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.time-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 5px rgba(56,189,248,0.28);
+}
+.time-slider::-moz-range-thumb {
+  width: 18px; height: 18px;
+  border-radius: 50%; border: none;
+  background: var(--accent);
+  cursor: pointer;
+}
+.time-slider::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px; background: var(--surface3);
+}
+.time-ticks {
+  display: flex; justify-content: space-between;
+}
+.time-tick {
+  background: none; border: none;
+  font-size: 10px; color: var(--text-muted);
+  cursor: pointer; padding: 4px 6px;
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
+  min-width: 36px; text-align: center;
+}
+.time-tick:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.time-tick-active { color: var(--accent) !important; font-weight: 700; }
+.time-note {
+  font-size: 10px; color: var(--text-muted); line-height: 1.5;
+  margin-top: 2px;
+}
+
 /* ── Destination bar rows (Diaspora) ── */
 .dest-bar-row {
   display: flex; align-items: center; gap: 6px;
@@ -759,6 +823,14 @@ body {
   .family-toggle { padding: 8px 8px; }
   .seg-btn { padding: 7px 8px; font-size: 11px; }
   .preset-btn { padding: 5px 10px; }
+
+  /* Diaspora time slider: bigger thumb and tick targets on mobile */
+  .time-slider { height: 6px; }
+  .time-slider::-webkit-slider-thumb { width: 26px; height: 26px; }
+  .time-slider::-moz-range-thumb { width: 26px; height: 26px; }
+  .time-tick { font-size: 12px; padding: 8px 6px; min-width: 44px; }
+  .time-year-badge { font-size: 17px; }
+  .time-slider-block { padding: 13px 14px; gap: 10px; }
 
   /* Intro overlay: compact on mobile */
   .intro-count-num { font-size: 38px; }

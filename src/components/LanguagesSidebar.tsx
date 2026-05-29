@@ -17,7 +17,7 @@ interface Props {
 
 const ALL_IDS = new Set(languageGroups.map((l) => l.id));
 
-type SpeakerMode = "total" | "native";
+type SpeakerMode = "total" | "native" | "market";
 
 type Preset = {
   label: string;
@@ -28,6 +28,11 @@ type Preset = {
 const PRESETS: Preset[] = [
   { label: "All", title: "Select all languages", ids: languageGroups.map((l) => l.id) },
   { label: "None", title: "Clear all selections", ids: [] },
+  {
+    label: "Personal",
+    title: "Languages Ryan speaks or has studied: French, Spanish, Italian, Portuguese, German, Hebrew, Mandarin, Swedish, Russian, Arabic, Japanese, Icelandic",
+    ids: ["french","spanish","italian","portuguese","german","hebrew","mandarin","swedish","russian","arabic","japanese","icelandic"],
+  },
   {
     label: "UN Official",
     title: "6 UN official languages: Arabic, Chinese, English, French, Russian, Spanish",
@@ -184,6 +189,16 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
     return { pop: Math.round(pop), pct: Math.min(100, pct), speakers };
   }, [selected, speakerMode]);
 
+  // Market reach: selected languages sorted by GDP
+  const marketStats = useMemo(() => {
+    const langs = languageGroups.filter((l) => selected.has(l.id));
+    const totalGdp = langs.reduce((s, l) => s + l.gdpT, 0);
+    const totalInternet = langs.reduce((s, l) => s + l.internetUsersM, 0);
+    const sorted = [...langs].sort((a, b) => b.gdpT - a.gdpT);
+    const maxGdp = sorted[0]?.gdpT ?? 1;
+    return { totalGdp, totalInternet, sorted, maxGdp };
+  }, [selected]);
+
   useEffect(() => {
     onStateChange({ highlights, arcs: influenceArcs, rings: [] });
   }, [highlights, influenceArcs, onStateChange]);
@@ -237,7 +252,19 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
   }, [search]);
 
   const speakerCount = (lang: LanguageGroup) =>
-    speakerMode === "native" ? lang.nativeSpeakers : lang.speakers;
+    speakerMode === "native" ? lang.nativeSpeakers :
+    speakerMode === "market" ? lang.gdpT :
+    lang.speakers;
+
+  const statLabel = speakerMode === "native" ? "M native" :
+    speakerMode === "market" ? "T GDP" : "M total";
+
+  const statDisplay = (lang: LanguageGroup) => {
+    if (speakerMode === "market") {
+      return lang.gdpT >= 1 ? `$${lang.gdpT.toFixed(1)}T` : `$${(lang.gdpT * 1000).toFixed(0)}B`;
+    }
+    return `${speakerCount(lang)}M`;
+  };
 
   return (
     <>
@@ -264,36 +291,86 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
           className={`seg-btn ${speakerMode === "total" ? "seg-active" : ""}`}
           onClick={() => setSpeakerMode("total")}
         >
-          Total speakers
+          Total
         </button>
         <button
           className={`seg-btn ${speakerMode === "native" ? "seg-active" : ""}`}
           onClick={() => setSpeakerMode("native")}
         >
-          Native only
+          Native
+        </button>
+        <button
+          className={`seg-btn ${speakerMode === "market" ? "seg-active" : ""}`}
+          onClick={() => setSpeakerMode("market")}
+          title="Show GDP and internet reach for each language's primary economies"
+        >
+          Market
         </button>
       </div>
 
-      {/* Coverage bar */}
-      <div className="coverage-block">
-        <div className="coverage-header">
-          <span className="coverage-title">Language reach</span>
-          <span className="coverage-pct">{coverage.pct.toFixed(0)}% of nations</span>
-        </div>
-        <div className="coverage-bar-track">
-          <div className="coverage-bar-fill" style={{ width: `${coverage.pct}%` }} />
-        </div>
-        <div className="coverage-stats-grid">
-          <div className="coverage-stat">
-            <span className="coverage-stat-num">~{coverage.speakers.toLocaleString()}M</span>
-            <span className="coverage-stat-label">{speakerMode === "native" ? "native" : "total"} speakers</span>
+      {/* Coverage bar — hidden in market mode */}
+      {speakerMode !== "market" && (
+        <div className="coverage-block">
+          <div className="coverage-header">
+            <span className="coverage-title">Language reach</span>
+            <span className="coverage-pct">{coverage.pct.toFixed(0)}% of nations</span>
           </div>
-          <div className="coverage-stat">
-            <span className="coverage-stat-num">{coverage.pop.toLocaleString()}M</span>
-            <span className="coverage-stat-label">pop. in covered countries</span>
+          <div className="coverage-bar-track">
+            <div className="coverage-bar-fill" style={{ width: `${coverage.pct}%` }} />
+          </div>
+          <div className="coverage-stats-grid">
+            <div className="coverage-stat">
+              <span className="coverage-stat-num">~{coverage.speakers.toLocaleString()}M</span>
+              <span className="coverage-stat-label">{speakerMode === "native" ? "native" : "total"} speakers</span>
+            </div>
+            <div className="coverage-stat">
+              <span className="coverage-stat-num">{coverage.pop.toLocaleString()}M</span>
+              <span className="coverage-stat-label">pop. in covered countries</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Market reach panel — shown only in market mode */}
+      {speakerMode === "market" && (
+        <div className="market-block">
+          <div className="market-header">
+            <span className="market-title">Market reach</span>
+            <span className="market-totals">
+              <span className="market-gdp">${marketStats.totalGdp.toFixed(1)}T GDP</span>
+              <span className="market-sep">·</span>
+              <span className="market-inet">{marketStats.totalInternet.toLocaleString()}M online</span>
+            </span>
+          </div>
+          <div className="market-bars">
+            {marketStats.sorted.map((lang) => {
+              const barPct = (lang.gdpT / marketStats.maxGdp) * 100;
+              const gdpLabel = lang.gdpT >= 1 ? `$${lang.gdpT.toFixed(1)}T` : `$${(lang.gdpT * 1000).toFixed(0)}B`;
+              return (
+                <div key={lang.id} className="market-bar-row">
+                  <span className="market-bar-name" style={{ color: lang.color }}>{lang.name}</span>
+                  <div className="market-bar-wrap">
+                    <div
+                      className="market-bar-fill"
+                      style={{ width: `${barPct}%`, background: lang.color + "cc" }}
+                    />
+                  </div>
+                  <span className="market-bar-val">{gdpLabel}</span>
+                </div>
+              );
+            })}
+          </div>
+          {marketStats.sorted.some((l) => l.marketNote) && (
+            <div className="market-notes">
+              {marketStats.sorted.filter((l) => l.marketNote && selected.has(l.id)).slice(0, 3).map((lang) => (
+                <p key={lang.id} className="market-note-line">
+                  <span style={{ color: lang.color }}>▪</span> <strong>{lang.name}:</strong> {lang.marketNote}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Search */}
       <div className="search-row">
@@ -359,8 +436,8 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
                       {lang.name}
                     </span>
                     <div className="legend-right">
-                      <span className="legend-stat">
-                        {speakerCount(lang)}M
+                      <span className="legend-stat" title={statLabel}>
+                        {statDisplay(lang)}
                       </span>
                       <button
                         className="fly-btn"
@@ -386,7 +463,9 @@ const LanguagesSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig
       })}
 
       <p className="sidebar-note" style={{ marginTop: 4 }}>
-        Dim fills = colonial/secondary reach. Bright fills = dominant speaker regions. Overlap countries use screen-blend color mixing. Hover to isolate. M = millions.
+        {speakerMode === "market"
+          ? "GDP reflects primary economies where language dominates commerce. Internet users = estimated speakers online."
+          : "Dim fills = colonial/secondary reach. Bright fills = dominant speaker regions. Overlap countries use screen-blend color mixing. Hover to isolate. M = millions."}
       </p>
     </>
   );

@@ -381,6 +381,38 @@ body {
 .coverage-stat-num { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.03em; }
 .coverage-stat-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.09em; line-height: 1.3; }
 
+/* ── Market reach panel ── */
+.market-block {
+  background: rgba(255,255,255,0.025);
+  border-radius: var(--radius);
+  padding: 12px 13px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.market-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px; }
+.market-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-muted); }
+.market-totals { display: flex; gap: 6px; align-items: center; }
+.market-gdp { color: #34d399; font-weight: 700; font-size: 12px; }
+.market-sep { color: var(--text-muted); font-size: 11px; }
+.market-inet { color: #60a5fa; font-size: 11px; font-weight: 600; }
+.market-bars { display: flex; flex-direction: column; gap: 5px; }
+.market-bar-row { display: flex; align-items: center; gap: 6px; }
+.market-bar-name {
+  font-size: 10px; font-weight: 600; width: 90px; min-width: 90px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.market-bar-wrap {
+  flex: 1; height: 6px; background: rgba(255,255,255,0.06);
+  border-radius: 3px; overflow: hidden;
+}
+.market-bar-fill {
+  height: 100%; border-radius: 3px;
+  transition: width 0.45s ease;
+}
+.market-bar-val { font-size: 10px; font-weight: 700; color: var(--text-dim); min-width: 42px; text-align: right; }
+.market-notes { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.market-note-line { font-size: 11px; color: var(--text-muted); line-height: 1.45; margin: 0; }
+.market-note-line strong { color: var(--text-dim); font-weight: 600; }
+
 /* ── Language family groups ── */
 .family-group { display: flex; flex-direction: column; gap: 3px; }
 .family-header {

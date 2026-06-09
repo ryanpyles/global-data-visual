@@ -311,7 +311,8 @@ const App: React.FC = () => {
   const handleTabChange = useCallback((tab: TabId) => {
     setActiveTab(tab);
     setClickedCountry(null);
-    setGlobeState(EMPTY_STATE);
+    // Don't reset globeState to EMPTY — sidebar will push new state on mount,
+    // and keeping stale state is less jarring than a flash of all-dark globe.
     setDrawerOpen(false);
     setActiveStory(null);
     setBeatIdx(0);
@@ -331,7 +332,6 @@ const App: React.FC = () => {
     setActiveStory(story);
     setBeatIdx(0);
     setStoryKey(story.id);
-    setGlobeState(EMPTY_STATE);
     setClickedCountry(null);
     setStoriesOpen(false);
     const firstBeat = story.beats[0];

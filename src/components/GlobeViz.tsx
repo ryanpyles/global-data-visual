@@ -69,22 +69,21 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
       globe
         .polygonsData(polygons)
         .polygonAltitude((d: any) => {
-          if (!d.properties.highlightColor) return 0.001;
-          // Contested/overlapping countries sit lower — creates visual depth hierarchy
+          if (!d.properties.highlightColor) return 0.004;
           return d.properties.contested ? 0.009 : 0.016;
         })
         .polygonCapColor((d: any) => {
           if (d.properties.highlightColor) return d.properties.highlightColor;
-          // Languages: pitch-dark unlit so only selected languages glow
-          // Diaspora/Stateless: subtle land colour for geographic bearings
-          return modeRef.current === "languages" ? "#070f1c" : "#0e1c30";
+          // Languages: very dark so only selected languages glow
+          // Diaspora/Stateless: visible steel-blue land so geography is readable
+          return modeRef.current === "languages" ? "#0a1526" : "#1b3351";
         })
         .polygonSideColor((d: any) =>
           d.properties.highlightColor ? d.properties.highlightColor + "40" : "rgba(0,0,0,0)"
         )
         .polygonStrokeColor((d: any) => {
           if (!d.properties.highlightColor) {
-            return modeRef.current === "languages" ? "rgba(10,20,38,0.4)" : "rgba(18,32,52,0.7)";
+            return modeRef.current === "languages" ? "rgba(10,20,38,0.4)" : "rgba(55,100,165,0.55)";
           }
           if (d.properties.contested) return "rgba(255,255,255,0.55)";
           return d.properties.highlightColor + "88";

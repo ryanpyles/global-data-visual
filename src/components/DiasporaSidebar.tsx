@@ -100,7 +100,11 @@ const DiasporaSidebar: React.FC<Props> = ({ onStateChange, onFlyTo, storyConfig 
         const r = parseInt(hex.slice(0, 2), 16);
         const g = parseInt(hex.slice(2, 4), 16);
         const b = parseInt(hex.slice(4, 6), 16);
-        const color = `rgb(${Math.round(r * intensity + 12 * (1 - intensity))},${Math.round(g * intensity + 12 * (1 - intensity))},${Math.round(b * intensity + 12 * (1 - intensity))})`;
+        const ri = Math.round(r * intensity + 12 * (1 - intensity));
+        const gi = Math.round(g * intensity + 12 * (1 - intensity));
+        const bi = Math.round(b * intensity + 12 * (1 - intensity));
+        const color = `#${ri.toString(16).padStart(2, "0")}${gi.toString(16).padStart(2, "0")}${bi.toString(16).padStart(2, "0")}`;
+
         const pctOfTotal = ((population / (group.population * 1000 * scale)) * 100).toFixed(1);
 
         if (!seenHl.has(country)) {

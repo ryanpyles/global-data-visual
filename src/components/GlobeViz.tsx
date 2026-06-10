@@ -78,15 +78,19 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
           // Diaspora/Stateless: visible steel-blue land so geography is readable
           return modeRef.current === "languages" ? "#0a1526" : "#1b3351";
         })
-        .polygonSideColor((d: any) =>
-          d.properties.highlightColor ? d.properties.highlightColor + "40" : "rgba(0,0,0,0)"
-        )
+        .polygonSideColor((d: any) => {
+          const c = d.properties.highlightColor;
+          if (!c) return "rgba(0,0,0,0)";
+          // Only hex strings can have an alpha suffix; rgb() strings need rgba() format
+          return c.startsWith("#") ? c + "40" : c.replace("rgb(", "rgba(").replace(")", ",0.25)");
+        })
         .polygonStrokeColor((d: any) => {
           if (!d.properties.highlightColor) {
             return modeRef.current === "languages" ? "rgba(10,20,38,0.4)" : "rgba(55,100,165,0.55)";
           }
           if (d.properties.contested) return "rgba(255,255,255,0.55)";
-          return d.properties.highlightColor + "88";
+          const c = d.properties.highlightColor;
+          return c.startsWith("#") ? c + "88" : c.replace("rgb(", "rgba(").replace(")", ",0.53)");
         })
         .polygonLabel(tooltipHtml)
         .onPolygonClick((d: any) => {

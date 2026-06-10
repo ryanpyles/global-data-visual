@@ -239,6 +239,12 @@ const GlobeViz = forwardRef<GlobeHandle, Props>(
         .then((r) => r.json())
         .then((data) => {
           geoRef.current = data.features;
+          // Pre-load all polygons immediately (no highlights yet) so the globe
+          // surface is populated before any sidebar pushes highlight data.
+          // polygonsTransitionDuration(0) disables the 1-second altitude tween that
+          // was causing polygons to stay buried at altitude-0 (inside the globe mesh).
+          globe.polygonsTransitionDuration(0);
+          applyPolygons(globe, buildPolygons(data.features, new Map()));
           setLoaded(true);
         });
 
